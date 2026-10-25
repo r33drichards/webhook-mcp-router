@@ -1,5 +1,9 @@
 # Webhook MCP Router
 
+**Current direction:** C# isolated Azure Functions on classic Windows Consumption, Azure SQL, and allowance alerts. [Plan and current evidence](docs/csharp-consumption-plan.md). Windows CI passed the bounded official OPA subprocess tests and built the MCP Functions project. Azure deployment, SQL/outbox integration and custom event-method support remain pending; the current MCP scaffold exposes only readiness status. Billing/provisioning are paused pending explicit account and budget decisions.
+
+The runtime investigation below describes the historical Go/Wasmer phase.
+
 Experimental runtime investigation for a single Go webhook receiver, embedded OPA evaluator, and official Go MCP SDK control plane. Public repository: `r33drichards/webhook-mcp-router`.
 
 **Not deployment-ready.** GitHub CI has passed the official SDK fixture's native tests, WASI build, and actual Wasmer CGI initialize/tools/create/fresh-instance readback. This uses manually supplied CGI metadata and mapped local storage, not hosted WCGI or Edge persistence. Exact event-subscription lifecycle and hosted outbound callbacks remain incomplete/unverified. The combined Go/OPA service passed native tests and WASI compilation; embedded Go OPA evaluation also passed under Wasmer (match/nonmatch/malformed-input assertions). Deployment stays gated.

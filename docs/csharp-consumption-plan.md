@@ -72,3 +72,11 @@ Official .NET SDK download/hash verification and version check passed. Local dot
 Prepared credential-free Windows CI .github/workflows/dotnet-consumption.yml verifies official Windows OPA digest, runs real process tests and builds the isolated MCP project. No Azure login, secret, role, billing or deployment step is present. CI outcome must be recorded after publication. Core Tools download was previously denied403; do not retry via alternate routes. Windows CI success is not proof of Functions-host or Azure hosted support.
 
 Next gates: Windows build/tests, actual local Functions MCP initialize/list/call, custom event-method integration, SQL/outbox implementation/tests, account and spending approval, reviewed resource plan, then hosted synthetic lifecycle/signature/retry checks. No real GitHub hook is included.
+
+## Verified Windows CI result
+
+[Run40182986503](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40182986503), implementation commit2dd865dd2ad766a377817b26d0d93a2dfdc0d8a0, completed SUCCESS. Job121137784962 ran the pinned Windows OPA1.9.0 executable after SHA256 validation. All13 checks passed: match, nonmatch, unknown subscription rejection, forbidden network builtin, malformed policy/input, four concurrent evaluations, four allowance checks, arbitrary destination URL rejection and cancellation. The .NET10 isolated Functions/MCP project built with zero warnings and zero errors.
+
+This establishes Windows process-level OPA interoperability and C# MCP project compilation. It does NOT establish a real Functions-host initialize/tools/list/tools/call exchange, hosted child-process permission, SQL durability, event-extension compatibility, alerts delivery or a deployed Azure service. No Azure credentials were used by CI.
+
+Additional source inspection: Azure/azure-functions-mcp-extension at fffb20b38ce7665443c1ae1dbffeaf4e5e2d66ee registers the MCP server in the WebJobs host process (McpWebJobsBuilderExtensions.cs). FunctionsMcpServerOptionsSetup advertises tools/resources/prompts. This is separate from the isolated C# worker DI container; adding middleware only to the worker does not establish a way to add events/* methods to that host server. A supported host extension hook or a deliberate SDK HTTP endpoint still needs verification.
