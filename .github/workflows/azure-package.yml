@@ -12,14 +12,14 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
-      APPLICATION_COMMIT: 1922c593d39e8ad6817a15eb3ce26a2b753be0f7
+      APPLICATION_COMMIT: 917536dcc8b99201ecf63f7e123423e9ba3dfceb
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 1922c593d39e8ad6817a15eb3ce26a2b753be0f7
+          ref: 917536dcc8b99201ecf63f7e123423e9ba3dfceb
           path: source
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
@@ -46,6 +46,11 @@ jobs:
           $manifest | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $release 'files.json')
           dotnet run --project source/tests/dotnet/Router.Checks --configuration Release -- (Join-Path $unpacked 'tools/opa.exe') (Join-Path $unpacked 'policies/capabilities.json')
           if ($LASTEXITCODE -ne 0) { throw 'Packaged OPA checks failed' }
+          dotnet run --project source/tests/dotnet/Router.DeliveryChecks --configuration Release -- (Join-Path $unpacked 'tools/opa.exe') (Join-Path $unpacked 'policies/capabilities.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged OPA-to-HTTPS checks failed' }
+          $functionNames = @((Get-Content (Join-Path $unpacked 'functions.metadata') -Raw | ConvertFrom-Json).name)
+          foreach ($name in @('RouterDispatch','RouterReconcile')) { if ($name -notin $functionNames) { throw "Missing function $name" } }
+
           $digest = (Get-FileHash (Join-Path $release 'router.zip') -Algorithm SHA256).Hash.ToLowerInvariant()
           "$digest  router.zip" | Set-Content (Join-Path $release 'SHA256SUMS')
           [ordered]@{applicationCommit=$env:APPLICATION_COMMIT;packagingCommit=$env:GITHUB_SHA;dotnetSdk='10.0.402';opa='1.9.0';zipSha256=$digest;runId=$env:GITHUB_RUN_ID} | ConvertTo-Json | Set-Content (Join-Path $release 'build.json')
@@ -71,7 +76,7 @@ jobs:
       - name: Upload only verified secret-free package and manifests
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: router-windows-1922c593-${{ github.run_id }}
+          name: router-windows-917536dc-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/router-release/router.zip
             ${{ runner.temp }}/router-release/SHA256SUMS
