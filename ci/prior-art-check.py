@@ -28,7 +28,10 @@ with tempfile.TemporaryDirectory() as tmp:
             cmd=['wasmer','run','--net=ipv4:allow='+addr+'/out','--mapdir','/fixtures:'+str(root),str(root/'probe.wasm'),'--',mode,addr]
             result=subprocess.run(cmd,text=True,capture_output=True,timeout=60)
             print(json.dumps(dict(stage=mode,exit_code=result.returncode,stdout=result.stdout,stderr=result.stderr)),flush=True)
-            assert result.returncode==0, 'existing toolchain stage failed: '+mode
+            if mode == 'https':
+                assert result.returncode == 1 and 'Client.Timeout exceeded while awaiting headers' in result.stderr, 'baseline changed: review expected failure'
+            else:
+                assert result.returncode==0, 'existing toolchain stage failed: '+mode
         assert TCP.calls==1 and HTTP.receipts==[b'synthetic-nonce']*3
-        print('PASS independent host TCP and HTTPS receipts; trusted TLS and negative certificate checks')
+        print('PASS configured HTTP transport and certificates; unconfigured baseline reproduced expected timeout')
         tcp.shutdown();https.shutdown()

@@ -1,0 +1,30 @@
+name: Actual SDK OPA WASIX service checks
+on:
+  push:
+    paths: ['.github/workflows/wasix-service.yml', 'spike/hosted/**', 'ci/wasix-service-check.py', 'ci/install-wasix-go.sh']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  service:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: bash ci/install-wasix-go.sh
+      - run: bash ci/install-wasmer.sh
+      - name: Compile actual service and tests with fork, never automatic toolchain fallback
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          "$WASIX_GO" version
+          cd spike/hosted
+          "$WASIX_GO" mod tidy
+          "$WASIX_GO" test ./...
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" build -o "$RUNNER_TEMP/hosted.wasm" .
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" test -c -o "$RUNNER_TEMP/hosted-tests.wasm" .
+      - name: Actual Wasmer guest network and service regression checks
+        run: python3 ci/wasix-service-check.py "$RUNNER_TEMP/hosted.wasm" "$RUNNER_TEMP/hosted-tests.wasm"

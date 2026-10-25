@@ -8,5 +8,10 @@
   "wasmer": {
     "version": "7.5.0",
     "linuxAmd64ArchiveSha256": "23f99818deaad93859f8bb8292af81f0c39f25aea19eaccfb72fc7c9e8a3fae9"
+  },
+  "wasixGo": {
+    "release": "go1.25.5-6-wasix",
+    "url": "https://github.com/wasix-org/go/releases/download/go1.25.5-6-wasix/go-1.25.5-linux-x86_64.tar.gz",
+    "sha256": "c728bcffd6536f38125a652ada1da814bcf46c8cae974a873ab8f402f8d95ed0"
   }
 }

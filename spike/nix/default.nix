@@ -23,6 +23,7 @@ pkgs.buildGoModule {
   # SDK-specific patches must target vendored SDK source, not only this module.
   # Supply a source/module replacement and regenerate go.sum/vendorHash as needed.
   env.CGO_ENABLED = "0";
+  env.GOTOOLCHAIN = "local";
   doCheck = false; # Runtime assertions are separate; never run a Wasm file natively.
   buildPhase = ''
     runHook preBuild
