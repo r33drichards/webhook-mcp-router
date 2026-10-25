@@ -11,7 +11,7 @@ public sealed class DispatchSignal {
         DestinationManagement.Id(wakeup.TenantId);DestinationManagement.Id(wakeup.SourceId);
         string account=Environment.GetEnvironmentVariable("AzureWebJobsStorage__accountName")??"";
         if(account.Length is <3 or >24||account.Any(c=>!char.IsAsciiLetterLower(c)&&!char.IsAsciiDigit(c)))throw new InvalidOperationException("DISPATCH_STORAGE_INVALID");
-        var queue=new QueueClient(new Uri($"https://{account}.queue.core.windows.net/router-dispatch"),new ManagedIdentityCredential(),new QueueClientOptions{MessageEncoding=QueueMessageEncoding.Base64});
+        var queue=new QueueClient(new Uri($"https://{account}.queue.core.windows.net/router-dispatch"),new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned),new QueueClientOptions{MessageEncoding=QueueMessageEncoding.Base64});
         // Queue is explicitly provisioned by the operator; no CreateIfNotExists here.
         await queue.SendMessageAsync(JsonSerializer.Serialize(wakeup),delay,TimeSpan.FromDays(2),ct);
     }

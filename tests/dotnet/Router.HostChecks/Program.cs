@@ -41,7 +41,7 @@ async Task<(int,JsonNode?)> Rpc(string method,object parameters,string? token) {
 async Task<JsonNode> Tool(string name,object arguments,string token){var(status,rpc)=await Rpc("tools/call",new{name,arguments},token);Check(status==200,"tool HTTP200 "+name);return rpc!["result"]!;}
 JsonNode Data(JsonNode result)=>JsonNode.Parse(result["content"]![0]!["text"]!.GetValue<string>())!["result"]!;
 async Task<int> Ingress(string id,byte[] body,bool valid,string source="source-a",string eventType="issues"){using var request=new HttpRequestMessage(HttpMethod.Post,"/api/webhooks/"+source){Content=new ByteArrayContent(body)};request.Headers.Add("X-GitHub-Delivery",id);request.Headers.Add("X-GitHub-Event",eventType);request.Headers.Add("X-Hub-Signature-256","sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(valid?ingressKey:new byte[32],body)));using var response=await http.SendAsync(request);return(int)response.StatusCode;}
-var dispatchQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch",new QueueClientOptions{MessageEncoding=QueueMessageEncoding.Base64});
+var dispatchQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch",new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05){MessageEncoding=QueueMessageEncoding.Base64});
 bool success=false;
 try {
  await Sql(master,"CREATE DATABASE ["+dbName+"]");await SqlMigration.ApplyAsync(connection);
@@ -87,6 +87,7 @@ try {
  Check(await new SqlOutbox(connection,new TenantContext("tenant-a","fixture",[]),genericWebhook:true).ClaimAsync(TimeSpan.FromSeconds(30),default) is null,"actual host duplicate does not create second generic delivery");
  success=true;Console.WriteLine("LIMIT: actual Functions host with synthetic static signing-key DI and real LocalDB; production HTTPS JWKS retrieval and live Keycloak remain untested. No callback delivery attempted.");
 } finally {
- await Stop();await dispatchQueue.DeleteIfExistsAsync();SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");
+ await Stop();try {await dispatchQueue.DeleteIfExistsAsync();}catch(Azure.RequestFailedException e){Console.WriteLine("Fixture queue cleanup failed: HTTP "+e.Status);}
+ SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");
  if(!success){/* Never print raw host logs: synthetic auth/signing fixture values may appear in diagnostics. */ Console.WriteLine("Host diagnostic withheld; failure assertion and host exit status identify stage.");}
 }
