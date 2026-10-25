@@ -60,5 +60,27 @@ jobs:
         run: |
           dotnet build src/dotnet/Router.Functions --configuration Release
           if ($LASTEXITCODE -ne 0) { throw 'Functions build failed' }
+      - name: Install pinned official Core Tools and local Azurite
+        shell: pwsh
+        run: |
+          $toolsPath = Join-Path $env:RUNNER_TEMP 'functions-host-tools'
+          npm install --prefix $toolsPath azure-functions-core-tools@4.12.0 azurite@3.35.0 --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Official host tooling install failed; no alternate download attempted' }
+          & (Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin/func.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'Core Tools version failed' }
+      - name: Boot actual Functions host and verify routes
+        shell: pwsh
+        run: |
+          $toolsPath = Join-Path $env:RUNNER_TEMP 'functions-host-tools'
+          $fixturePath = Join-Path $env:RUNNER_TEMP 'functions-host-fixture'
+          New-Item -ItemType Directory -Force $fixturePath | Out-Null
+          $azuriteScript = Join-Path $toolsPath 'node_modules/azurite/dist/src/azurite.js'
+          $azurite = Start-Process node -ArgumentList @($azuriteScript, '--silent', '--location', $fixturePath, '--blobHost', '127.0.0.1', '--queueHost', '127.0.0.1', '--tableHost', '127.0.0.1') -PassThru -RedirectStandardOutput (Join-Path $fixturePath 'azurite.out') -RedirectStandardError (Join-Path $fixturePath 'azurite.err')
+          try {
+            python ci/functions-host-check.py --func (Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin/func.exe') --root src/dotnet/Router.Functions/bin/Release/net10.0 --log-dir $fixturePath
+            if ($LASTEXITCODE -ne 0) { throw 'Actual Functions-host checks failed' }
+          } finally {
+            if (!$azurite.HasExited) { Stop-Process -Id $azurite.Id -Force }
+          }
 # No Azure login, credentials, billing change, provisioning or deployment.
 
