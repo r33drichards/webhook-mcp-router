@@ -60,6 +60,11 @@ jobs:
         run: |
           dotnet build src/dotnet/Router.Functions --configuration Release
           if ($LASTEXITCODE -ne 0) { throw 'Functions build failed' }
+      - name: Build actual-host synthetic issuer fixture
+        shell: pwsh
+        run: |
+          dotnet build tests/dotnet/Router.HostFixture --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Host fixture build failed' }
       - name: Install pinned official Core Tools and local Azurite
         shell: pwsh
         run: |
@@ -79,6 +84,8 @@ jobs:
           try {
             python ci/functions-host-check.py --func (Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin/func.exe') --root src/dotnet/Router.Functions/bin/Release/net10.0 --log-dir $fixturePath
             if ($LASTEXITCODE -ne 0) { throw 'Actual Functions-host checks failed' }
+            dotnet run --project tests/dotnet/Router.HostChecks --configuration Release -- (Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin/func.exe') (Join-Path $env:GITHUB_WORKSPACE 'tests/dotnet/Router.HostFixture/bin/Release/net10.0') (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
+            if ($LASTEXITCODE -ne 0) { throw 'Authenticated Functions-host SQL checks failed' }
           } finally {
             if (!$azurite.HasExited) { Stop-Process -Id $azurite.Id -Force }
           }
