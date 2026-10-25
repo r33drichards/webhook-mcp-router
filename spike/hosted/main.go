@@ -106,6 +106,7 @@ type eventDelivery struct {
 	Secret string `json:"secret,omitempty"`
 }
 type eventParams struct {
+	invalid bool
 	mcp.ParamsBase
 	Name      string         `json:"name"`
 	Arguments map[string]any `json:"arguments"`
@@ -120,7 +121,8 @@ func (p *eventParams) UnmarshalJSON(body []byte) error {
 	d := json.NewDecoder(bytes.NewReader(body))
 	d.DisallowUnknownFields()
 	if d.Decode(&value) != nil {
-		return errors.New("invalid event request parameters")
+		*p = eventParams{invalid: true}
+		return nil // Validate in handler: SDK decode errors echo raw params, including secrets.
 	}
 	*p = eventParams(value)
 	return nil
@@ -155,7 +157,7 @@ func eventOwner(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 func eventIdentity(owner string, p *eventParams) (string, error) {
-	if owner == "" || p.Name != eventName || p.Arguments == nil || len(p.Arguments) != 0 || p.Delivery.Mode != "webhook" || p.Delivery.URL == "" {
+	if p.invalid || owner == "" || p.Name != eventName || p.Arguments == nil || len(p.Arguments) != 0 || p.Delivery.Mode != "webhook" || p.Delivery.URL == "" {
 		return "", errors.New("invalid event identity")
 	}
 	value, _ := json.Marshal([]any{owner, p.Delivery.URL, p.Name, p.Arguments})

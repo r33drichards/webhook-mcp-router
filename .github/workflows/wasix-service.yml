@@ -23,6 +23,11 @@ jobs:
           "$WASIX_GO" version
           cd spike/hosted
           "$WASIX_GO" mod tidy
+          echo MODULE_LOCK_BEGIN
+          cat go.mod
+          echo MODULE_SUM_BEGIN
+          cat go.sum
+          echo MODULE_LOCK_END
           "$WASIX_GO" test ./...
           GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" build -o "$RUNNER_TEMP/hosted.wasm" .
           GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" test -c -o "$RUNNER_TEMP/hosted-tests.wasm" .
