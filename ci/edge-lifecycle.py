@@ -4,7 +4,7 @@ Wasmer published schema replaces deprecated secret APIs with envVars/updateEnvVa
 Approved values travel only in TLS API bodies with sensitive=true, never logs/files.
 GitHub environment-secret deletion requires the coordinating browser owner.
 """
-import datetime,json,os,pathlib,re,subprocess,sys,time,urllib.error,urllib.parse,urllib.request
+import datetime,json,os,pathlib,re,socket,ssl,subprocess,sys,time,urllib.error,urllib.parse,urllib.request
 
 APP='r33drichards/webhook-mcp-router'
 APP_ID='da_K6AIot5U1ND7'
@@ -64,6 +64,49 @@ def save(state):
 def inspect_secrets():
     print(json.dumps({'operation':'current envVars metadata only','app_id':APP_ID,'names_and_sensitivity':secret_metadata()}),flush=True)
 
+# Deliberately emit no free-form response text: an error page may echo request
+# credentials. These fixed phrases retain useful platform diagnostics safely.
+BODY_MARKERS=('bad gateway','service unavailable','internal server error',
+              'unauthorized','forbidden','application error','runtime error',
+              'synthetic CGI configuration or execution failed',
+              'method not allowed','not found')
+
+def readiness_probe(request):
+    diagnostic={'category':'unknown','status':None}
+    try:
+        try:
+            response=OPENER.open(request,timeout=15)
+        except urllib.error.HTTPError as error:
+            response=error
+        with response:
+            diagnostic['status']=response.status
+            body=response.read(65537)
+        text=body.decode('utf-8',errors='replace')
+        diagnostic['body']={'bytes_read':len(body),'truncated':len(body)>65536,
+                            'recognized_errors':[p for p in BODY_MARKERS if p.lower() in text.lower()]}
+        if len(body)>65536:
+            diagnostic['category']='response_limit';return False,diagnostic
+        try:
+            value=json.loads(body)
+            diagnostic['body']['format']='json'
+        except (ValueError,UnicodeError):
+            diagnostic['body']['format']='non_json'
+            diagnostic['category']='invalid_json' if response.status==200 else 'http_error'
+            return False,diagnostic
+        if response.status!=200:diagnostic['category']='http_error'
+        elif not isinstance(value,dict) or not isinstance(value.get('result'),dict):
+            diagnostic['category']='rpc_error' if isinstance(value,dict) and 'error' in value else 'missing_result'
+        else:
+            diagnostic['category']='ready';return True,diagnostic
+    except Exception as error:
+        reason=error.reason if isinstance(error,urllib.error.URLError) else error
+        if isinstance(reason,ssl.SSLError):diagnostic['category']='tls_error'
+        elif isinstance(reason,(TimeoutError,socket.timeout)):diagnostic['category']='timeout'
+        elif isinstance(reason,socket.gaierror):diagnostic['category']='dns_error'
+        elif isinstance(error,urllib.error.URLError):diagnostic['category']='connection_error'
+        else:diagnostic['category']='request_error'
+    return False,diagnostic
+
 def deploy():
     global stage
     for name in (*NAMES,'WASMER_TOKEN'):
@@ -111,11 +154,9 @@ def deploy():
     body=json.dumps({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'synthetic-ready','version':'1'}}}).encode()
     for attempt in range(24):
         request=urllib.request.Request(url+'/mcp',data=body,headers={'Authorization':'Bearer '+os.environ['POC_TEST_TOKEN'],'Content-Type':'application/json','Accept':'application/json, text/event-stream','MCP-Protocol-Version':'2025-06-18'})
-        try:
-            with OPENER.open(request,timeout=15) as response:
-                value=json.loads(response.read(65536))
-                if response.status==200 and 'result' in value:break
-        except Exception:pass
+        ready,diagnostic=readiness_probe(request)
+        if ready:break
+        print(json.dumps({'stage':stage,'attempt':attempt+1,**diagnostic}),flush=True)
         time.sleep(5)
     else:raise RuntimeError('hosted initialization unavailable')
     # Public endpoint outputs only; credentials stay step-scoped environment values.

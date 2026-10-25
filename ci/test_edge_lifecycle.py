@@ -19,6 +19,35 @@ def fake_api(values,updates):
     return query
 
 class LifecycleTests(unittest.TestCase):
+    def test_readiness_diagnostics_never_emit_echoed_secrets(self):
+        secret='synthetic-private-token'
+        body=('<html>Bad Gateway Authorization: Bearer '+secret+'</html>').encode()
+        response=urllib.error.HTTPError('https://owned.wasmer.app',502,secret,{'Authorization':secret},io.BytesIO(body))
+        with patch.object(edge.OPENER,'open',side_effect=response):
+            ready,diagnostic=edge.readiness_probe(object())
+        self.assertFalse(ready)
+        self.assertEqual(diagnostic['status'],502)
+        self.assertEqual(diagnostic['category'],'http_error')
+        self.assertEqual(diagnostic['body']['recognized_errors'],['bad gateway'])
+        self.assertNotIn(secret,json.dumps(diagnostic))
+        self.assertNotIn('Authorization',json.dumps(diagnostic))
+
+    def test_readiness_bounds_and_rpc_errors(self):
+        for body,category in [(b'x'*65538,'response_limit'),(b'not json','invalid_json'),
+                              (b'{"error":{"message":"private"}}','rpc_error'),
+                              (b'{"result":null}','missing_result')]:
+            response=io.BytesIO(body);response.status=200
+            with patch.object(edge.OPENER,'open',return_value=response):
+                ready,diagnostic=edge.readiness_probe(object())
+            self.assertFalse(ready);self.assertEqual(diagnostic['category'],category)
+            self.assertNotIn('private',json.dumps(diagnostic))
+            self.assertLessEqual(diagnostic['body']['bytes_read'],65537)
+
+    def test_readiness_network_failure_is_category_only(self):
+        with patch.object(edge.OPENER,'open',side_effect=urllib.error.URLError(TimeoutError('private URL/token'))):
+            ready,diagnostic=edge.readiness_probe(object())
+        self.assertFalse(ready);self.assertEqual(diagnostic,{'status':None,'category':'timeout'})
+
     def test_cleanup_deletes_only_approved_names_and_verifies(self):
         with tempfile.TemporaryDirectory() as directory:
             state=pathlib.Path(directory)/'state.json';state.write_text(json.dumps({'secrets_attempted':True,'url':'https://owned.wasmer.app'}))
