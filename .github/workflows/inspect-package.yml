@@ -1,0 +1,17 @@
+name: Inspect active WCGI package metadata
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Read active version and packaged command metadata only
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: python3 ci/inspect-published-wcgi.py

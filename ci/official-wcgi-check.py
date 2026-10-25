@@ -16,6 +16,15 @@ def guest(wasm):
         assert payload=='Hello, '+(body or 'World')+'!','official guest body mismatch'
         assert 'content-type:' in headers.lower(),'missing CGI headers'
         print(json.dumps({'stage':'official-guest','exit_code':r.returncode,'synthetic_response_verified':True}))
+    # Reproduce the exact hosted panic with one missing CGI metadata key.
+    # All values remain synthetic; never enumerate the process environment.
+    missing=dict(env);missing.pop('REQUEST_METHOD')
+    cmd=['wasmer','run',str(pathlib.Path(wasm).resolve())]
+    for name,value in missing.items():cmd+=['--env',name+'='+value]
+    r=subprocess.run(cmd,input=body,text=True,capture_output=True,timeout=60)
+    assert r.returncode!=0 and 'lib.rs:259:30' in r.stderr and 'no entry found for key' in r.stderr, 'missing-method panic reproduction mismatch'
+    print(json.dumps({'stage':'missing-CGI-metadata-negative','missing_key':'REQUEST_METHOD',
+                      'exit_code':r.returncode,'exact_hosted_panic_reproduced':True}))
 
 def hosted():
     if any(os.environ.get(n) for n in edge.NAMES) or edge.secret_names():raise RuntimeError('service secrets must be absent')
