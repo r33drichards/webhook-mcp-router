@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory() as tmp:
     with http.server.ThreadingHTTPServer(('127.0.0.1',0),Sink) as server:
         tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);tls.load_cert_chain(root/'cert.pem',root/'key.pem');server.socket=tls.wrap_socket(server.socket,server_side=True)
         threading.Thread(target=server.serve_forever,daemon=True).start();port=server.server_address[1]
-        callback='https://localhost:'+str(port)+'/callback'
+        callback='https://127.0.0.1:'+str(port)+'/callback'
         secret='whsec_'+base64.b64encode(key).decode()
         common=dict(POC_STATE_DIR='/state',POC_RECEIPT_DIR='/receipts',POC_TEST_TOKEN=token,POC_RECEIPT_TOKEN=secrets.token_hex(32),POC_CALLBACK_URL=callback,POC_WEBHOOK_SECRET=secret,POC_CA_FILE='/fixtures/cert.pem',REQUEST_METHOD='POST',SERVER_PROTOCOL='HTTP/1.1',SERVER_NAME='localhost',SERVER_PORT='80',GATEWAY_INTERFACE='CGI/1.1',CONTENT_TYPE='application/json',HTTP_ACCEPT='application/json, text/event-stream',HTTP_AUTHORIZATION='Bearer '+token,HTTP_MCP_PROTOCOL_VERSION='2025-06-18')
         def request(path,value,headers=None):

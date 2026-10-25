@@ -32,6 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert result.returncode == 1 and 'Client.Timeout exceeded while awaiting headers' in result.stderr, 'baseline changed: review expected failure'
             else:
                 assert result.returncode==0, 'existing toolchain stage failed: '+mode
+        print(json.dumps(dict(tcp_connections=TCP.calls,http_receipts=[b.decode('ascii') for b in HTTP.receipts])),flush=True)
         assert TCP.calls==1 and HTTP.receipts==[b'synthetic-nonce']*3
         print('PASS configured HTTP transport and certificates; unconfigured baseline reproduced expected timeout')
         tcp.shutdown();https.shutdown()
