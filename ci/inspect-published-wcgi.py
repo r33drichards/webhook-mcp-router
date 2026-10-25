@@ -4,7 +4,7 @@ spec=importlib.util.spec_from_file_location('edge',pathlib.Path(__file__).with_n
 edge=importlib.util.module_from_spec(spec);spec.loader.exec_module(edge)
 QUERY='''query AuditWCGI($owner:String!,$name:String!) {
  getDeployApp(owner:$owner,name:$name) { id name activeVersion {
-  id isActive url permalink jsonConfig
+  id isActive url urls permalink jsonConfig
   sourcePackageVersion { version manifest webcGenerationErrors isCorrupt
    webc {version manifest webcSha256} webcV3 {version manifest webcSha256}
    modules {name source abi} commands {command}
@@ -28,12 +28,30 @@ def manifest(value):
             'wcgi_dialect':text(wcgi.get('dialect'))}
     return result
 
+def shape(value,depth=0):
+    if depth>6:return '<depth limit>'
+    if isinstance(value,dict):return {text(k):shape(v,depth+1) for k,v in value.items()}
+    if isinstance(value,list):return [shape(v,depth+1) for v in value[:3]]
+    return type(value).__name__
+def selectors(value,path=''):
+    out={}
+    if isinstance(value,dict):
+        for k,v in value.items():
+            if k.lower() in ('env','environment','secrets','headers'):continue
+            current=path+'/'+k
+            if k in ('runner','entrypoint','command','protocol','mode','kind','package') and isinstance(v,str):out[current]=text(v)
+            out.update(selectors(v,current))
+    elif isinstance(value,list):
+        for i,v in enumerate(value[:3]):out.update(selectors(v,path+'/'+str(i)))
+    return out
+
 def main():
     app=edge.graphql(QUERY,{'owner':'r33drichards','name':'webhook-mcp-router'})['getDeployApp']
     if not app or app['id']!=edge.APP_ID:raise ValueError('canonical app mismatch')
     version=app['activeVersion'];config=json.loads(version['jsonConfig'])
     output={'app_id':app['id'],'version_id':version['id'],'is_active':version['isActive'],
-            'version_url':text(version['url']),'permalink':text(version['permalink']),
+            'version_url':text(version['url']),'urls':[text(u) for u in version['urls']],'permalink':text(version['permalink']),
+            'config_shape':shape(config),'config_selectors':selectors(config),
             'config_keys':[text(k) for k in config], 'package':text(config.get('package')),
             'package_metadata':{}}
     for field in ('sourcePackageVersion','sourcePackageRelease'):
