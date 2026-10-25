@@ -31,7 +31,7 @@ func newHTTPClient() (*http.Client, error) {
 		}
 		dnsDialer := &net.Dialer{Timeout: 3 * time.Second, Control: socketControl}
 		dialer.Resolver = &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			return dnsDialer.DialContext(ctx, network, endpoint)
+			return dnsDialer.DialContext(ctx, "tcp", endpoint)
 		}}
 	}
 	return &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{

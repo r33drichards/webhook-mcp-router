@@ -1,6 +1,7 @@
 """Actual compiled service tests in Wasmer, with an independent synthetic HTTPS host."""
 import http.server,json,os,pathlib,ssl,subprocess,sys,tempfile,threading,time,socketserver,struct
 
+failures=[]
 service, tests = map(lambda p: str(pathlib.Path(p).resolve()),sys.argv[1:3])
 with tempfile.TemporaryDirectory() as tmp:
     root=pathlib.Path(tmp)
@@ -23,7 +24,13 @@ with tempfile.TemporaryDirectory() as tmp:
         class DNS(socketserver.BaseRequestHandler):
             queries=0
             def handle(self):
-                packet,sock=self.request
+                prefix=self.request.recv(2)
+                if len(prefix)!=2:return
+                size=struct.unpack('!H',prefix)[0];packet=b''
+                while len(packet)<size:
+                    part=self.request.recv(size-len(packet))
+                    if not part:return
+                    packet+=part
                 if len(packet)<17:return
                 pos=12
                 while pos<len(packet) and packet[pos]:pos+=1+packet[pos]
@@ -34,18 +41,28 @@ with tempfile.TemporaryDirectory() as tmp:
                 # Controlled A answer only; AAAA gets a valid empty answer.
                 answer=b'\xc0\x0c'+struct.pack('!HHIH',1,1,30,4)+b'\x7f\x00\x00\x01' if kind==1 else b''
                 reply=packet[:2]+struct.pack('!HHHHH',0x8180,1,int(kind==1),0,0)+packet[12:end]+answer
-                sock.sendto(reply,self.client_address)
-        dns=socketserver.ThreadingUDPServer(('127.0.0.1',port),DNS)
+                self.request.sendall(struct.pack("!H",len(reply))+reply)
+        dns=socketserver.ThreadingTCPServer(('127.0.0.1',0),DNS)
+        dns_port=dns.server_address[1]
         threading.Thread(target=dns.serve_forever,daemon=True).start()
-        cmd=['wasmer','run','--net=ipv4:allow=127.0.0.1:'+str(port)+'/out','--mapdir','/fixtures:'+str(root),
-             '--env','POC_DNS_SERVER=127.0.0.1:'+str(port),'--env','POC_CA_FILE=/fixtures/cert.pem','--env','POC_NETWORK_TEST_URL=https://localhost:'+str(port),
-             tests,'--','-test.run','^TestGuestNetwork$','-test.v']
-        result=subprocess.run(cmd,text=True,capture_output=True,timeout=60)
-        print(json.dumps(dict(stage='actual-service-network-tests',exit_code=result.returncode,stdout=result.stdout,stderr=result.stderr)),flush=True)
-        assert result.returncode==0,'actual service networking tests failed'
-        assert Sink.receipts==[b'synthetic-nonce']*5,'independent host did not receive all concurrent requests'
-        assert DNS.queries>0,'DNS fixture was not queried'
+        for mode in ['ip','tcp-dns']:
+            before=len(Sink.receipts)
+            rule='ipv4:allow=127.0.0.1:{'+str(port)+','+str(dns_port)+'}/out' if mode=='tcp-dns' else 'ipv4:allow=127.0.0.1:'+str(port)+'/out'
+            host='localhost' if mode=='tcp-dns' else '127.0.0.1'
+            cmd=['wasmer','run','--net='+rule,'--mapdir','/fixtures:'+str(root),
+                 '--env','POC_CA_FILE=/fixtures/cert.pem','--env','POC_NETWORK_TEST_URL=https://'+host+':'+str(port)]
+            if mode=='tcp-dns':cmd+=['--env','POC_DNS_SERVER=127.0.0.1:'+str(dns_port)]
+            cmd+=[tests,'--','-test.run','^TestGuestNetwork$','-test.v']
+            try:
+                result=subprocess.run(cmd,text=True,capture_output=True,timeout=60)
+                print(json.dumps(dict(stage='actual-service-'+mode,exit_code=result.returncode,stdout=result.stdout,stderr=result.stderr)),flush=True)
+                if result.returncode!=0 or Sink.receipts[before:]!=[b'synthetic-nonce']*5:failures.append(mode)
+                if mode=='tcp-dns' and DNS.queries==0:failures.append('DNS fixture not queried')
+            except subprocess.TimeoutExpired:
+                print('FAIL timed out: '+mode,flush=True);failures.append(mode)
         dns.shutdown();dns.server_close();server.shutdown()
-    subprocess.run([sys.executable,'ci/sdk-cgi-check.py',service],check=True)
-    subprocess.run([sys.executable,'ci/events-cgi-check.py',service],check=True)
-    print('PASS actual service fork build/network suite and fresh-guest SDK persistence; no managed Edge claim')
+    for script in ['ci/sdk-cgi-check.py','ci/events-cgi-check.py']:
+        result=subprocess.run([sys.executable,script,service])
+        if result.returncode:failures.append(script)
+    if failures:raise SystemExit('FAIL stages: '+', '.join(failures))
+    print('PASS actual service fork IP/TCP-DNS/TLS/concurrency/cancellation and fresh-guest SDK/events/OPA checks; no managed Edge claim')

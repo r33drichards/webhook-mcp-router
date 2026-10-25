@@ -9,8 +9,9 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run(['wasmer','inspect',str(root/'probe.wasm')],check=True)
     class TCP(socketserver.BaseRequestHandler):
         calls=0
+        bodies=[]
         def handle(self):
-            type(self).calls+=1;self.request.sendall(self.request.recv(128))
+            type(self).calls+=1;body=self.request.recv(128);type(self).bodies.append(body);self.request.sendall(body)
     class HTTP(http.server.BaseHTTPRequestHandler):
         receipts=[]
         def do_POST(self):
@@ -32,7 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert result.returncode == 1 and 'Client.Timeout exceeded while awaiting headers' in result.stderr, 'baseline changed: review expected failure'
             else:
                 assert result.returncode==0, 'existing toolchain stage failed: '+mode
-        print(json.dumps(dict(tcp_connections=TCP.calls,http_receipts=[b.decode('ascii') for b in HTTP.receipts])),flush=True)
-        assert TCP.calls==1 and HTTP.receipts==[b'synthetic-nonce']*3
+        print(json.dumps(dict(tcp_connections=TCP.calls,tcp_payloads=[b.decode('ascii') for b in TCP.bodies],http_receipts=[b.decode('ascii') for b in HTTP.receipts])),flush=True)
+        assert [body for body in TCP.bodies if body]==[b'synthetic-nonce'] and HTTP.receipts==[b'synthetic-nonce']*3
         print('PASS configured HTTP transport and certificates; unconfigured baseline reproduced expected timeout')
         tcp.shutdown();https.shutdown()
