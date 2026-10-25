@@ -14,3 +14,17 @@ for method,body in [('GET',''),('POST','Synthetic'),(None,'')]:
     assert value['stdin_synthetic']==(body=='Synthetic')
     assert 'CGI_ENVELOPE_PROBE' in result.stderr
     print(json.dumps({'stage':'guest-envelope','supplied_method':method,'report':value}))
+
+# Keep stdin open with no CONTENT_LENGTH: the probe must reply without EOF.
+cmd=['wasmer','run',wasm]
+with subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) as proc:
+    try:proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill();proc.wait();raise AssertionError('missing length blocked on open stdin')
+    stdout=proc.stdout.read();stderr=proc.stderr.read()
+    assert proc.returncode==0
+    _,payload=stdout.split('\n\n',1);value=json.loads(payload)
+    assert value['request_method_present'] is False and value['content_length_present'] is False
+    assert value['stdin_read_ok'] is False
+    assert 'CGI_ENVELOPE_START request_method_present=false content_length_present=false' in stderr
+    print(json.dumps({'stage':'guest-envelope-open-stdin','exit_code':proc.returncode,'report':value}))
