@@ -4,7 +4,7 @@ CLI 7.5.0 source, not its misleading JSON help text, confirms secret --from-file
 reads dotenv. Values flow through stdin, never argv, package files or artifacts.
 GitHub environment-secret deletion requires the coordinating browser owner.
 """
-import datetime,json,os,pathlib,subprocess,sys,time,urllib.error,urllib.parse,urllib.request
+import datetime,json,os,pathlib,re,subprocess,sys,time,urllib.error,urllib.parse,urllib.request
 
 APP='r33drichards/webhook-mcp-router'
 NAMES=('POC_TEST_TOKEN','POC_RECEIPT_TOKEN','POC_WEBHOOK_SECRET')
@@ -27,6 +27,22 @@ def secret_names():
 
 def save(state):
     STATE.write_text(json.dumps(state)) # app identifiers/status only; never values
+
+def inspect_secrets():
+    # Read-only names/metadata query; this endpoint does not retrieve values.
+    result=subprocess.run(['wasmer','app','secret','list','--app',APP,'--format=json','--non-interactive'],text=True,capture_output=True,timeout=90)
+    error=re.sub(r'\x1b\[[0-9;]*m','',result.stderr)
+    for name,value in os.environ.items():
+        if any(word in name for word in ('TOKEN','SECRET','PASSWORD')) and len(value)>=8:error=error.replace(value,'[REDACTED]')
+    report={'operation':'list secret names only','exit_code':result.returncode,'stderr_redacted':error[-2000:]}
+    try:
+        data=json.loads(result.stdout)
+        report['json_type']=type(data).__name__
+        if isinstance(data,list):report['names']=[item.get('name') for item in data if isinstance(item,dict)]
+        elif isinstance(data,dict):report['keys']=sorted(data.keys())
+    except Exception:report['stdout_shape']='empty' if not result.stdout.strip() else 'non-JSON text withheld'
+    print(json.dumps(report),flush=True)
+    if result.returncode:raise RuntimeError('read-only CLI inspection failed')
 
 def deploy():
     global stage
@@ -58,8 +74,9 @@ def deploy():
     config.write_text(text)
     state['expires_at']=expiry;save(state)
     cli('deploy','--dir','deploy','--non-interactive','--publish-package','--no-persist-id','--no-wait','--format=json')
-    stage='create-only-approved-app-secrets'
+    stage='inspect-secret-names-before-create'
     if secret_names().intersection(NAMES):raise RuntimeError('temporary names already exist; refuse overwrite')
+    stage='transfer-approved-app-secrets'
     state['secrets_attempted']=True;save(state)
     dotenv=''.join(name+'='+os.environ[name]+'\n' for name in NAMES)
     cli('app','secret','create','--app',APP,'--from-file','/dev/stdin','--non-interactive','--redeploy',stdin=dotenv)
@@ -116,7 +133,7 @@ def cleanup():
 
 if __name__=='__main__':
     try:
-        {'deploy':deploy,'cleanup':cleanup}[sys.argv[1]]()
+        {'deploy':deploy,'cleanup':cleanup,'inspect':inspect_secrets}[sys.argv[1]]()
     except Exception:
         print('FAIL isolated Edge lifecycle stage='+stage+'; details withheld',file=sys.stderr)
         sys.exit(1)

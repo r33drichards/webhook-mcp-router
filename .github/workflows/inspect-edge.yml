@@ -1,0 +1,18 @@
+name: Inspect isolated Edge secret metadata
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: bash ci/install-wasmer.sh
+      - name: Read names only and diagnose CLI response without secret values
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: python3 ci/edge-lifecycle.py inspect
