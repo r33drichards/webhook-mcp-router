@@ -21,3 +21,4 @@ spike/ingress/source/vendor/
 deploy/server.wasm
 deploy/certs/
 deploy/*.env
+spike/official-wcgi/target/
