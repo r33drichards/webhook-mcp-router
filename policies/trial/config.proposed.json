@@ -1,0 +1,47 @@
+{
+  "status": "proposal-not-activated",
+  "source": {
+    "id": "mcp-js-github",
+    "provider": "github",
+    "repository_id": 961207108,
+    "repository": "r33drichards/mcp-js",
+    "events": "all available repository webhook events",
+    "tenant_id": null
+  },
+  "forwarding_default": "deny",
+  "stages": [
+    {
+      "order": 100,
+      "id": "review_route",
+      "kind": "opa",
+      "policy": "policies/trial/mcp-js-review.rego"
+    }
+  ],
+  "destinations": [],
+  "jev": {
+    "provider": "TypeSafe System One",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "model": "jev-1.14.0",
+    "status": "DEFERRED follow-up; not required or activated in first slice",
+    "contract": "decision plus validated typed answers in enrichments.jev; no bypass of OPA"
+  },
+  "activation_blockers": [
+    "tenant/source configuration",
+    "approved generic destination URLs",
+    "generic destination persistence/dispatcher integration",
+    "hosted tests and approved network/credential setup"
+  ],
+  "destination_selection": {
+    "metadata_tag": "review",
+    "policy_sees": [
+      "id",
+      "name",
+      "tags"
+    ],
+    "protected_fields_excluded": [
+      "url",
+      "auth",
+      "credentials"
+    ]
+  }
+}

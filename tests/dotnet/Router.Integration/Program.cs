@@ -36,6 +36,13 @@ try {
  Check(!await ob.CompleteAsync(claim.Id,claim.Lease,ct),"cross tenant outbox lease denied");
  Check(await oa.CompleteAsync(claim.Id,claim.Lease,ct),"own lease completion");
  Check(await ob.ClaimAsync(TimeSpan.FromSeconds(30),ct) is not null,"other tenant delivery preserved");
+ await Execute(connection,File.ReadAllText("src/dotnet/Router.Storage/destination-schema.sql"));
+ await Execute(connection,"INSERT registry.Destinations(Owner,Id,Name,Tags,Enabled) VALUES('tenant-a','dest-shared','A','[\"review\"]',1),('tenant-b','dest-shared','B','[\"other\"]',1),('tenant-a','disabled','Hidden','[]',0)");
+ var destinationReader=new SqlDestinationReader(connection,new TenantContext("tenant-a","client-a",["destinations:read"]));
+ var metadata=await destinationReader.SnapshotAsync("tenant-a",ct);
+ Check(metadata.Count==1&&metadata[0].Name=="A"&&metadata[0].Tags!.SequenceEqual(new[]{"review"}),"SQL destination metadata tenant scope and disabled filtering");
+ await Deny(()=>destinationReader.SnapshotAsync("tenant-b",ct),"cross tenant destination metadata denied");
+ await Deny(()=>new SqlDestinationReader(connection,new TenantContext("tenant-a","limited",[])).SnapshotAsync("tenant-a",ct),"destination metadata permission required");
  var capture=new RequestCapture();var sample=capture.Capture("POST","accepted",Encoding.UTF8.GetBytes("{\"token\":\"secret\",\"message\":\"private\",\"number\":3}"),true,"issues");
  Check(sample.Redacted&&!sample.Payload!.Contains("secret")&&!sample.Payload.Contains("private"),"payload credentials and free text redacted");
  Check(capture.Capture("POST","failed",Encoding.UTF8.GetBytes("\"secret\""),true).Payload=="\"[REDACTED]\"","root string redaction");

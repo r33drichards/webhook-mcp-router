@@ -10,8 +10,12 @@ public sealed record Route(string SubscriptionId, JsonElement Payload);
 // never MCP arguments. No shell, inherited secrets, network builtins or URLs.
 public sealed class OpaEvaluator(string executable, string capabilities)
 {
-    public async Task<IReadOnlyList<Route>> EvaluateAsync(string source, string inputJson,
-        IReadOnlySet<string> registeredIds, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Route>> EvaluateAsync(string source,string inputJson,IReadOnlySet<string> registeredIds,CancellationToken cancellationToken=default)
+        =>EvaluateRoutesAsync(source,inputJson,registeredIds,"subscription_id",cancellationToken);
+    public async Task<IReadOnlyList<DestinationRoute>> EvaluateDestinationsAsync(string source,string inputJson,IReadOnlySet<string> registeredIds,CancellationToken cancellationToken=default)
+        =>(await EvaluateRoutesAsync(source,inputJson,registeredIds,"destination_id",cancellationToken)).Select(r=>new DestinationRoute(r.SubscriptionId,r.Payload)).ToArray();
+    private async Task<IReadOnlyList<Route>> EvaluateRoutesAsync(string source, string inputJson,
+        IReadOnlySet<string> registeredIds,string idField, CancellationToken cancellationToken)
     {
         if (!Path.IsPathFullyQualified(executable) || !Path.IsPathFullyQualified(capabilities))
             throw new InvalidOperationException("OPA_PATH_INVALID");
@@ -61,9 +65,9 @@ public sealed class OpaEvaluator(string executable, string capabilities)
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var value in values.EnumerateArray())
                 {
-                    if (value.ValueKind != JsonValueKind.Object || value.EnumerateObject().Count()!=2 || value.EnumerateObject().Select(p=>p.Name).Distinct(StringComparer.Ordinal).Count()!=2 || value.EnumerateObject().Any(p => p.Name is not ("subscription_id" or "payload")))
+                    if (value.ValueKind != JsonValueKind.Object || value.EnumerateObject().Count()!=2 || value.EnumerateObject().Select(p=>p.Name).Distinct(StringComparer.Ordinal).Count()!=2 || value.EnumerateObject().Any(p => p.Name!=idField && p.Name!="payload"))
                         throw new InvalidOperationException("POLICY_RESULT_INVALID");
-                    string id = value.GetProperty("subscription_id").GetString() ?? "";
+                    string id = value.GetProperty(idField).GetString() ?? "";
                     if (!registeredIds.Contains(id) || !seen.Add(id)) throw new InvalidOperationException("SUBSCRIPTION_NOT_ELIGIBLE");
                     var payload = value.GetProperty("payload");
                     if (Encoding.UTF8.GetByteCount(payload.GetRawText()) > 8192) throw new InvalidOperationException("PAYLOAD_LIMIT");

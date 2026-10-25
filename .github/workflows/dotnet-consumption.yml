@@ -4,7 +4,7 @@ on:
     paths:
       - 'src/dotnet/**'
       - 'tests/dotnet/**'
-      - 'policies/capabilities.json'
+      - 'policies/**'
       - '.github/workflows/dotnet-consumption.yml'
   workflow_dispatch:
 permissions:

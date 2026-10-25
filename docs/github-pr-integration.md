@@ -1,3 +1,7 @@
+# Superseded trial scope
+
+The latest first slice is generic all-event ingress from mcp-js, not PR-only. See [generic-webhook-first-slice.md](generic-webhook-first-slice.md). The opt-in PR validator below remains available but must NOT be enabled for that trial. Jev is identified as TypeSafe and deferred to a follow-up; earlier unresolved-provider questions below are historical.
+
 # GitHub PR milestone (issue #1)
 
 This milestone uses the existing Railway Keycloak in a separate webhook-router realm. Keep its current4GB allocation and existing realm/client behavior; no restart/resize or live changes are made by this code. dip means the MCP application client, not Azure management IAM. Jev's exact technology/version remains unconfirmed; no language substitution or new evaluator is implemented.

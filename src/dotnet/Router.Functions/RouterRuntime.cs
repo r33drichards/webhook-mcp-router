@@ -7,7 +7,7 @@ namespace Router.Functions;
 
 // Operator configuration only; never populated from request data. No default credentials.
 public sealed record AuthSettings(string Issuer,string Audience,string Jwks,ServiceGrant[] Clients);
-public sealed record TenantSettings(string TenantId,string SourceId,string Callback,string CallbackKeyBase64,string IngressKeyBase64,string RegistryReadConnection,string RegistryWriteConnection,string OutboxConnection,string LogReadConnection,string LogWriteConnection,GitHubPullRequestScope? GitHubPullRequest=null);
+public sealed record TenantSettings(string TenantId,string SourceId,string Callback,string CallbackKeyBase64,string IngressKeyBase64,string RegistryReadConnection,string RegistryWriteConnection,string OutboxConnection,string LogReadConnection,string LogWriteConnection,GitHubPullRequestScope? GitHubPullRequest=null,long? GitHubRepositoryId=null);
 public interface IRouterRuntime { TokenValidator Validator {get;} RequestServer Mcp(TenantContext tenant); LoggedIngress? Ingress(string source); }
 public sealed class RouterRuntime:IRouterRuntime,IDisposable {
     private readonly object sync=new();private TokenValidator? validator;private HttpsSigningKeys? keys;
@@ -29,6 +29,7 @@ public sealed class RouterRuntime:IRouterRuntime,IDisposable {
             foreach(var t in tenants) {
                 _=new TenantContext(t.TenantId,"configuration",[]);
                 if(string.IsNullOrEmpty(t.SourceId)||t.SourceId.Length>64||t.SourceId.Any(c=>!char.IsAsciiLetterOrDigit(c)&&c is not ('_' or '-')))throw new InvalidOperationException("SOURCE_CONFIG_INVALID");
+                if(t.GitHubRepositoryId is <=0)throw new InvalidOperationException("SOURCE_CONFIG_INVALID");
                 if(t.GitHubPullRequest is not null)Router.Core.GitHubPullRequest.ValidateScope(t.GitHubPullRequest);
                 if(!Uri.TryCreate(t.Callback,UriKind.Absolute,out var url)||url.Scheme!="https"||url.UserInfo.Length!=0||url.Query.Length!=0||url.Fragment.Length!=0||url.IsLoopback||System.Net.IPAddress.TryParse(url.Host,out _))throw new InvalidOperationException("CALLBACK_CONFIG_INVALID");
                 if(Convert.FromBase64String(t.CallbackKeyBase64).Length is <24 or >64||Convert.FromBase64String(t.IngressKeyBase64).Length is <24 or >64)throw new InvalidOperationException("KEY_CONFIG_INVALID");
@@ -48,7 +49,7 @@ public sealed class RouterRuntime:IRouterRuntime,IDisposable {
         var tenant=new TenantContext(config.TenantId,"ingress:"+config.SourceId,["requests:append"]);
         var key=Convert.FromBase64String(config.IngressKeyBase64);
         var evaluator=new OpaEvaluator(Environment.GetEnvironmentVariable("OPA_EXECUTABLE")??"",Environment.GetEnvironmentVariable("OPA_CAPABILITIES")??"");
-        return new(new Ingestion(new SqlRegistrationReader(config.RegistryReadConnection,tenant),new SqlOutbox(config.OutboxConnection,tenant),evaluator,tenant,key,config.GitHubPullRequest,config.SourceId),new SqlRequestLog(config.LogWriteConnection,tenant,new()),new RequestCapture(),key);
+        return new(new Ingestion(new SqlRegistrationReader(config.RegistryReadConnection,tenant),new SqlOutbox(config.OutboxConnection,tenant),evaluator,tenant,key,config.GitHubPullRequest,config.SourceId,config.GitHubRepositoryId),new SqlRequestLog(config.LogWriteConnection,tenant,new()),new RequestCapture(),key);
     }
     public void Dispose(){keys?.Dispose();callbackHttp.Dispose();}
 }
