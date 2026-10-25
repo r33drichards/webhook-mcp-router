@@ -1,16 +1,16 @@
-# Verified runtime update
-
-Code commit `23fa45d9a39a3e840066355420a86a8a42a787e3` in public `r33drichards/webhook-mcp-router` passed GitHub CI run 40158341557: official SDK CGI initialization/tools/create/fresh-instance mapped-file readback under Wasmer, combined fork native tests and WASI compilation, and embedded Go OPA evaluation under Wasmer. Hosted WCGI, Edge persistence/outbound delivery, Nix release and exact event lifecycle remain unproven. Deployment is still gated. The parent verified Wasmer authentication/Free plan and stored the dedicated CI token privately; no token values belong in this document. Earlier uncompiled/unpublished statements below are historical.
-
-# Current execution update
-
-Public repository `r33drichards/webhook-mcp-router` is now approved. Parent is creating it; publication awaits confirmed availability and push authorization. GitHub Actions build/test preparation and one manually gated synthetic Wasmer deployment are authorized. Wasmer auth/cost/bootstrap and build/runtime prerequisites remain unresolved. Historical ideation-only/no-publication statements below describe earlier stages, not current authorization. The concrete synthetic official-SDK CGI fixture is in `spike/hosted`; stdlib native tests pass, SDK dependency setup remains blocked, and no hosted E2E pass exists.
-
 # Webhook router requirements
 
-Status: minimal POC requirements plus an authorized synthetic local runtime spike. No deployment authorized. Updated 2026-10-25.
+Status: active synthetic POC implementation and runtime validation, updated 2026-10-25. Public repository: https://github.com/r33drichards/webhook-mcp-router. Publication and CI are authorized; the earlier ideation-only/no-push restrictions are withdrawn. One minimal free-tier Wasmer hosted E2E is authorized after real readiness checks. New hosted credentials, paid resources, production hooks/data and unrelated access changes remain unapproved.
 
-The goal is a small, separate project that receives external webhooks, evaluates editable OPA/Rego policies, and routes matching events to registered MCP event subscription callbacks. GitHub is the first use case. This document records requirements and research; it is not an implementation or deployment commitment.
+The goal is one service that receives external webhooks, evaluates editable native OPA/Rego policies, and routes selected data to registered MCP webhook subscriptions. GitHub is the first provider. Tests use synthetic events only. No hosted deployment or hosted E2E success has occurred.
+
+## Current evidence and limits
+
+Actual CI run40160858958 on commit0430df942417eb3c43cb5a562aafb7cc93c080c3 passed the official SDK/native OPA fixture under Wasmer7.5.0 using pinned WASIX Go1.25.5: readonly dependency build, native tests, guest IP/TCP-DNS/TLS/cancellation/concurrency tests, fresh-instance state readback, event catalog/discovery, signed challenge, subscribe/renew/unsubscribe, signed synthetic ingress, native Rego routing and independent HTTPS signed callback receipt. No SDK source patch was required. See docs/runtime-evidence.md for logs and the deliberately retained unconfigured-client and UDP failure comparisons.
+
+These are local Wasmer guest results, not Wasmer Edge results or complete upstream receiver feature parity. Shared database RO/RW enforcement, hosted DNS/persistence and Edge E2E remain unverified. Persistent mapped files are a synthetic fixture. Nix definitions are pinned but untested. Cloudscape/Monaco and production auth remain deferred.
+
+The existing account WASMER_TOKEN is approved and saved. New isolated hosted service tokens/signing secret have not been created and need specific approval. docs/hosted-next-gate.md lists their destinations, scope and proposed lifetime. No paid resources or production events are authorized.
 
 ## Confirmed user requirements
 
@@ -27,7 +27,7 @@ The goal is a small, separate project that receives external webhooks, evaluates
 - Focus on the minimal POC first. Dex/Pomerium and native MCP authentication are alternatives to revisit later; neither authentication architecture nor a standalone GitHub application is required for this POC.
 - Keep the project POC-focused. The initial ideation pause was superseded by explicit authorization for a synthetic local Wasmer feasibility spike, including a local in-process ingress fallback if needed. No UI implementation until runtime boundaries are resolved.
 
-Project name, repository visibility, hosting, deployment, and publication are undecided. This phase authorizes no production credentials, live webhook registration, real event forwarding, deployment, access changes, or GitHub repository creation/push.
+Project name and public visibility are decided: webhook-mcp-router under r33drichards. Hosting target is Wasmer if verified feasible. No production credentials, real webhook registrations or real event forwarding are authorized. Minimal synthetic hosted deployment remains gated by runtime, app-secret and free-allowance checks.
 
 ## Minimal POC scope
 
@@ -125,7 +125,7 @@ Inspected official `modelcontextprotocol/go-sdk` source at commit `2e00768cde3f1
 - `auth.RequireBearerToken` accepts an application-supplied `TokenVerifier`, checks expiration/scopes, and attaches `TokenInfo` to context. `ProtectedResourceMetadataHandler` serves discovery metadata. The verifier must establish token validity and intended resource/issuer as appropriate; middleware is not a token issuer. [Auth components](https://github.com/modelcontextprotocol/go-sdk/blob/2e00768cde3f1ba31d898ea1f179e206d1ad27ef/auth/auth.go).
 - The SDK's auth server example explicitly expects a separate authorization server and introspection endpoint. Thus using the SDK's auth support does not itself provide a production authorization server, login, consent, credential lifecycle, or refresh service. A lightweight POC auth boundary can avoid Dex/Pomerium, but must not be described as complete MCP OAuth merely because it checks a bearer token. [Server auth example](https://github.com/modelcontextprotocol/go-sdk/blob/2e00768cde3f1ba31d898ea1f179e206d1ad27ef/examples/auth/server/main.go).
 
-The SDK build was attempted during the authorized spike but stopped at a dependency HTTP 403. No SDK patch or wire compatibility test completed. Test custom dispatch and exact discovery/result serialization before deciding that patching is necessary. If required, keep patches narrow, versioned, and regression-tested through Nix.
+The initial local SDK build was blocked by dependency HTTP 403. The permitted GitHub CI path subsequently compiled the SDK/native-OPA fixture and passed native custom-dispatch, discovery, lifecycle and redaction tests. Middleware exposes the top-level event capability without a source patch. Guest and hosted wire tests remain separate gates. Any future SDK patch must remain narrow and versioned.
 
 ## Nix build requirement
 
@@ -164,7 +164,7 @@ Deferred questions and regression coverage:
 - Decide independent deployments/stores versus shared issuer infrastructure, and whether GitHub applications should be per deployment; isolate this project's client registrations, session/cookie scope, signing/encryption keys, storage, and environment configuration from unrelated services.
 - Derive owner identity from verified claims, not user-controlled headers. Decide claim-to-role mapping for readers, policy editors, subscription owners, and administrators.
 - Verify refresh behavior under concurrent browser/API/MCP requests, multiple replicas, token rotation, process restart, and logout/revocation. Test races so one refresh cannot overwrite a newer token or cross client/session boundaries. Dex's connector re-queries GitHub during refresh, so its datastore and upstream availability matter.
-- Validate the eventual authentication flow with synthetic/local tests before live changes. No app registration, credentials, live authentication configuration, or deployment is authorized now.
+- Validate the eventual authentication flow with synthetic/local tests before live changes. No production app registration, new credentials or live authentication configuration is authorized; the separately approved synthetic hosted POC remains subject to its readiness gates.
 
 ## Deferred admin workflow
 
@@ -181,11 +181,11 @@ For the POC, use one policy/editor/sample/preview page. Sources, event definitio
 5. Deferred: choose principal/tenant model, source ownership, policy-edit permissions, callback secret storage and rotation.
 6. Deferred: choose database, queue, worker lifecycle, retry limits, dedup/replay retention, ordering, and backpressure behavior.
 7. Deferred: define policy activation semantics for events already queued, and refresh/unsubscribe/expiry behavior across workers.
-8. Deferred: choose project name, license, repository visibility, hosting, and deployment only after the design is agreed.
+8. Project/repository/public visibility are settled. License selection, production hosting and operating model remain unresolved.
 
 ## Current work state
 
-The separate local repo contains requirements, synthetic probes, raw execution evidence, a restricted sample policy, and an unvalidated Nix build definition. Earlier Python scaffold files are preserved but are not the chosen Go architecture and remain incomplete/untested. The official Go SDK and embedded OPA dependency downloads were blocked; no bypass was attempted. The local combined-service patch includes bounded synthetic ingress, per-policy OPA evaluation, and opt-in official-SDK stateless `/mcp` routes with synthetic create/list tools. The registry is process-local and not durable; live event subscribe/unsubscribe operations explicitly reject unsupported activation, and no top-level events capability is falsely advertised. Read/write interfaces are logical boundaries, not tested database permissions. Both combined build attempts exited 1 before compilation. [Patch evidence](docs/ingress-runtime-evidence.md). The local in-process Go ingress patch is the active implementation approach; the C-host policy evaluation remains a fallback feasibility result. Wasmer local policy execution and storage-only probes passed, while the standard-Go HTTP/process boundaries failed as documented above. No deployment, publication, production integration, or external payload delivery occurred; the preloaded MCP project remains unchanged.
+The separate public repository contains the Go receiver fork spike, an official-SDK/native-OPA CGI fixture, source references, runtime logs and pinned-but-untested Nix definitions. The fixture now implements exact event method names, discovery capability, signed callback verification, owner-scoped persisted grants, TTL checks and policy routing. Native tests and Wasm compilation passed in CI. Guest DNS/TLS/concurrency/lifecycle checks subsequently passed in run40160858958. Earlier local dependency denials were not bypassed. The original full receiver fork and this focused hosted fixture remain distinct probes; fixture success does not establish complete upstream webhook feature parity. No managed Edge deployment or production integration has occurred, and the preloaded MCP project remains unchanged.
 
 ## Deferred production delivery safeguards
 

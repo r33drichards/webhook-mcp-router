@@ -1,0 +1,21 @@
+[package]
+name = "r33drichards/webhook-mcp-router"
+version = "0.0.1"
+description = "Synthetic official SDK and native OPA WCGI feasibility probe"
+entrypoint = "server"
+
+[[module]]
+name = "server"
+source = "server.wasm"
+abi = "wasi"
+
+[[command]]
+name = "server"
+module = "server"
+runner = "https://webc.org/runner/wcgi"
+
+[command.annotations.wcgi]
+dialect = "rfc-3875"
+
+[fs]
+"/certs" = "certs"

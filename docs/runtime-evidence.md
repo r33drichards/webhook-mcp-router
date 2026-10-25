@@ -1,3 +1,25 @@
+## Actual integrated fixture passed under local Wasmer
+
+[Run 40160858958](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40160858958), commit `0430df942417eb3c43cb5a562aafb7cc93c080c3`, completed successfully. Pinned upstream WASIX Go1.25.5 compiled official SDK + native OPA1.9.0 with committed module locks and readonly resolution; native tests and both guest builds passed. Wasmer7.5.0 executed IP and controlled TCP-DNS networking suites (each exit0), including trusted TLS, unknown-CA/hostname rejection, four concurrent requests with host-observed payloads and cancellation. Exact outbound permissions covered only loopback fixture destinations.
+
+Fresh Wasmer instances passed initialize/tools/create/readback, events discovery/catalog, signed verification challenge, subscribe, persisted readback, renewal, idempotent unsubscribe, and authenticated synthetic GitHub-shaped ingress through registered native Rego policy to independent HTTPS sink with verified Standard Webhooks signature and exact selected data. Full log: docs/runtime-logs/actual-service-pass.log. This tests the focused hosted fixture, not full upstream webhook feature parity or managed Edge.
+
+[Prior-art regression run40160859029](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40160859029) also passed. The unconfigured default client timeout is asserted as an expected negative comparison; original red diagnostic logs remain intact. Host TCP assertion now checks the one nonempty payload rather than runtime probe connection count; raw counts/payloads are printed.
+
+UDP failure remains documented below. Wasmer auto-binds UDP to 0.0.0.0:0 and checks inbound permission, which the narrow outbound rule intentionally excludes. Standard Resolver.Dial over TCP avoids that requirement, without a custom network adapter or wildcard grant. Hosted DNS configuration is still unverified.
+
+No Edge deployment occurred. The dedicated account WASMER_TOKEN is already approved and saved; only NEW service bearer/HMAC credentials require approval. Exact proposal: docs/hosted-next-gate.md. Prepared deployment manifests remain gated, Nix expressions are untested, and mapped-file registration is not an enforced RO/RW shared database.
+
+## Actual SDK/native-OPA service checkpoint
+
+Publication clarification succeeded: main advanced to ca5d3bf after the one authorized retry. Subsequent published main is d82fa3d15b54d4b0f7d33641a4e9f23761f69b1d.
+
+[Service run 40160641320](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40160641320) compiled the actual official-SDK/native-OPA fixture and its tests with pinned WASIX Go1.25.5. Native tests passed, including custom events/discovery/challenge/TTL and redaction; service and test Wasm compilation passed with readonly locked modules. Guest networking failed at explicit synthetic UDP DNS connect: `dial udp 127.0.0.1:38041: connect: Operation not permitted` under exact outbound loopback permission. Earlier default resolver failure was missing guest resolver config. This UDP result is a runtime/policy boundary requiring diagnosis; do not broaden networking indiscriminately. Exact log: docs/runtime-logs/actual-service-dns.log.
+
+Later network/concurrency/cancellation and events-CGI steps did not run because the harness stopped on DNS. Next: run IP/TLS/events stages independently; inspect Wasmer UDP policy handling and test standard TCP resolver configuration if appropriate. No hosted deployment occurred. Prepared deploy manifests and secure app-credential proposal remain local and gated; new hosting credentials remain unapproved. Nix expressions remain untested.
+
+Prior-art comparison run40160641315 reproduces configured HTTPS success/default-client expected timeout, but remains red due a host test assertion counting 3 TCP connections rather than actual payload receipts. A local correction now records payloads and requires one exact nonempty echo; it is not yet published or passed. Historical red evidence remains preserved.
+
 ## Latest result: existing WASIX Go supports standard HTTPS with nonblocking dial
 
 Actual [CI run 40159664859](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40159664859), commit `56407ccfc5454004fedc5628e0e063e008044824`, tested Wasmer 7.5.0 with digest-verified upstream WASIX Go1.25.5. TCP, trusted TLS, unknown-CA and wrong-name rejection, synchronous HTTPS and **standard http.Client with net.Dialer.Control calling syscall.SetNonblock** all exited 0. The independent HTTPS host received and echoed exactly 15 synthetic bytes. No custom transport adapter or toolchain patch was implemented; certificate verification stayed enabled.

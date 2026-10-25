@@ -16,3 +16,8 @@ spike/mcp/state/
 spike/wcgi/*.wasm
 # Upstream's stale vendor snapshot predates OPA/SDK additions; resolve verified modules in CI.
 spike/ingress/source/vendor/
+
+# Generated deploy artifacts (never publish app secrets).
+deploy/server.wasm
+deploy/certs/
+deploy/*.env

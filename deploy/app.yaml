@@ -1,0 +1,17 @@
+# Prepared only; deployment gate remains closed pending runtime and app-secret approval.
+kind: wasmer.io/App.v0
+owner: r33drichards
+name: webhook-mcp-router
+package: .
+debug: false
+env:
+  POC_STATE_DIR: /state
+  POC_RECEIPT_DIR: /receipts
+  POC_CA_FILE: /certs/ca-certificates.crt
+# POC_CALLBACK_URL must be set to this app's verified HTTPS /callback endpoint.
+# POC_TEST_TOKEN, POC_RECEIPT_TOKEN, POC_WEBHOOK_SECRET require separate approval.
+volumes:
+  - name: synthetic-registrations
+    mount: /state
+  - name: synthetic-receipts
+    mount: /receipts

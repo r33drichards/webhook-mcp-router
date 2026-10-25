@@ -1,0 +1,220 @@
+﻿2026-10-25T04:09:40.9337596Z Current runner version: '2.338.0'
+2026-10-25T04:09:40.9365407Z ##[group]Runner Image Provisioner
+2026-10-25T04:09:40.9366368Z Hosted Compute Agent
+2026-10-25T04:09:40.9367072Z Version: 20261021.618
+2026-10-25T04:09:40.9367742Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-25T04:09:40.9368504Z Build Date: 2026-10-21T00:45:21Z
+2026-10-25T04:09:40.9369235Z Worker ID: {a203862e-219d-4134-8971-169024275a1e}
+2026-10-25T04:09:40.9370020Z Region: southcentralus
+2026-10-25T04:09:40.9370628Z Cloud: Azure
+2026-10-25T04:09:40.9371187Z ##[endgroup]
+2026-10-25T04:09:40.9372723Z ##[group]Operating System
+2026-10-25T04:09:40.9373454Z Ubuntu
+2026-10-25T04:09:40.9374026Z 24.04.5
+2026-10-25T04:09:40.9374522Z LTS
+2026-10-25T04:09:40.9375640Z ##[endgroup]
+2026-10-25T04:09:40.9376297Z ##[group]Runner Image
+2026-10-25T04:09:40.9376985Z Image: ubuntu-24.04
+2026-10-25T04:09:40.9377735Z Version: 20261012.334.1
+2026-10-25T04:09:40.9379015Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-25T04:09:40.9380644Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-25T04:09:40.9381632Z ##[endgroup]
+2026-10-25T04:09:40.9382805Z ##[group]GITHUB_TOKEN Permissions
+2026-10-25T04:09:40.9386108Z Contents: read
+2026-10-25T04:09:40.9386780Z Metadata: read
+2026-10-25T04:09:40.9387336Z ##[endgroup]
+2026-10-25T04:09:40.9389817Z Secret source: Actions
+2026-10-25T04:09:40.9390826Z Cache mode: write
+2026-10-25T04:09:40.9392135Z Prepare workflow directory
+2026-10-25T04:09:40.9738056Z Prepare all required actions
+2026-10-25T04:09:40.9794314Z Getting action download info
+2026-10-25T04:09:41.2679083Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-25T04:09:41.4600463Z Complete job name: service
+2026-10-25T04:09:41.5609556Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-10-25T04:09:41.5610644Z with:
+2026-10-25T04:09:41.5611133Z   persist-credentials: false
+2026-10-25T04:09:41.5611712Z   repository: r33drichards/webhook-mcp-router
+2026-10-25T04:09:41.5616123Z   token: ***
+2026-10-25T04:09:41.5616575Z   ssh-strict: true
+2026-10-25T04:09:41.5617038Z   ssh-user: git
+2026-10-25T04:09:41.5617466Z   clean: true
+2026-10-25T04:09:41.5617980Z   sparse-checkout-cone-mode: true
+2026-10-25T04:09:41.5618574Z   fetch-depth: 1
+2026-10-25T04:09:41.5619064Z   fetch-tags: false
+2026-10-25T04:09:41.5619565Z   show-progress: true
+2026-10-25T04:09:41.5620012Z   lfs: false
+2026-10-25T04:09:41.5620427Z   submodules: false
+2026-10-25T04:09:41.5620890Z   set-safe-directory: true
+2026-10-25T04:09:41.5621404Z   allow-unsafe-pr-checkout: false
+2026-10-25T04:09:41.5622185Z ##[endgroup]
+2026-10-25T04:09:41.6721861Z Syncing repository: r33drichards/webhook-mcp-router
+2026-10-25T04:09:41.6724715Z ##[group]Getting Git version info
+2026-10-25T04:09:41.6726002Z Working directory is '/home/runner/work/webhook-mcp-router/webhook-mcp-router'
+2026-10-25T04:09:41.6727272Z [command]/usr/bin/git version
+2026-10-25T04:09:41.6831323Z git version 2.55.0
+2026-10-25T04:09:41.6861556Z ##[endgroup]
+2026-10-25T04:09:41.6876435Z Temporarily overriding HOME='/home/runner/work/_temp/64ae81f0-1599-446b-bf0c-1ec5e96a182e' before making global git config changes
+2026-10-25T04:09:41.6879025Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T04:09:41.6887026Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T04:09:41.6940834Z Deleting the contents of '/home/runner/work/webhook-mcp-router/webhook-mcp-router'
+2026-10-25T04:09:41.6946783Z ##[group]Initializing the repository
+2026-10-25T04:09:41.6952298Z [command]/usr/bin/git init /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T04:09:41.7113860Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-25T04:09:41.7131257Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-25T04:09:41.7133465Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-25T04:09:41.7134808Z hint: call:
+2026-10-25T04:09:41.7136093Z hint:
+2026-10-25T04:09:41.7136965Z hint: 	git config --global init.defaultBranch <name>
+2026-10-25T04:09:41.7137980Z hint:
+2026-10-25T04:09:41.7138981Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-25T04:09:41.7140481Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-25T04:09:41.7141681Z hint:
+2026-10-25T04:09:41.7142119Z hint: 	git branch -m <name>
+2026-10-25T04:09:41.7142609Z hint:
+2026-10-25T04:09:41.7143245Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-25T04:09:41.7144398Z Initialized empty Git repository in /home/runner/work/webhook-mcp-router/webhook-mcp-router/.git/
+2026-10-25T04:09:41.7147786Z [command]/usr/bin/git remote add origin https://github.com/r33drichards/webhook-mcp-router
+2026-10-25T04:09:41.7209322Z ##[endgroup]
+2026-10-25T04:09:41.7210646Z ##[group]Disabling automatic garbage collection
+2026-10-25T04:09:41.7212907Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-25T04:09:41.7251731Z ##[endgroup]
+2026-10-25T04:09:41.7252914Z ##[group]Setting up auth
+2026-10-25T04:09:41.7260156Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T04:09:41.7307475Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T04:09:41.7718718Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T04:09:41.7756811Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T04:09:41.7986280Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T04:09:41.8025941Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T04:09:41.8260552Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-25T04:09:41.8312643Z ##[endgroup]
+2026-10-25T04:09:41.8313576Z ##[group]Fetching the repository
+2026-10-25T04:09:41.8323514Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +0430df942417eb3c43cb5a562aafb7cc93c080c3:refs/remotes/origin/main
+2026-10-25T04:09:42.2901848Z From https://github.com/r33drichards/webhook-mcp-router
+2026-10-25T04:09:42.2903079Z  * [new ref]         0430df942417eb3c43cb5a562aafb7cc93c080c3 -> origin/main
+2026-10-25T04:09:42.2906288Z ##[endgroup]
+2026-10-25T04:09:42.2907357Z ##[group]Determining the checkout info
+2026-10-25T04:09:42.2909139Z ##[endgroup]
+2026-10-25T04:09:42.2915572Z [command]/usr/bin/git sparse-checkout disable
+2026-10-25T04:09:42.2973216Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-25T04:09:42.3007557Z ##[group]Checking out the ref
+2026-10-25T04:09:42.3012097Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-25T04:09:42.3172736Z Switched to a new branch 'main'
+2026-10-25T04:09:42.3178091Z branch 'main' set up to track 'origin/main'.
+2026-10-25T04:09:42.3186700Z ##[endgroup]
+2026-10-25T04:09:42.3237088Z [command]/usr/bin/git log -1 --format=%H
+2026-10-25T04:09:42.3264675Z 0430df942417eb3c43cb5a562aafb7cc93c080c3
+2026-10-25T04:09:42.3274792Z ##[group]Removing auth
+2026-10-25T04:09:42.3279014Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T04:09:42.3313994Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T04:09:42.3554313Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T04:09:42.3587184Z http.https://github.com/.extraheader
+2026-10-25T04:09:42.3596140Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-25T04:09:42.3632491Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T04:09:42.3864368Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T04:09:42.3900134Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T04:09:42.4126554Z ##[endgroup]
+2026-10-25T04:09:42.4345429Z ##[group]Run bash ci/install-wasix-go.sh
+2026-10-25T04:09:42.4346242Z [36;1mbash ci/install-wasix-go.sh[0m
+2026-10-25T04:09:42.4651501Z shell: /usr/bin/bash -e {0}
+2026-10-25T04:09:42.4652279Z ##[endgroup]
+2026-10-25T04:09:43.1301864Z /home/runner/work/_temp/wasix-go.tar.gz: OK
+2026-10-25T04:09:44.6398462Z ##[group]Run bash ci/install-wasmer.sh
+2026-10-25T04:09:44.6398906Z [36;1mbash ci/install-wasmer.sh[0m
+2026-10-25T04:09:44.6465470Z shell: /usr/bin/bash -e {0}
+2026-10-25T04:09:44.6465805Z env:
+2026-10-25T04:09:44.6466109Z   WASIX_GO: /home/runner/work/_temp/wasix-go/bin/go
+2026-10-25T04:09:44.6466478Z ##[endgroup]
+2026-10-25T04:09:46.4279293Z /home/runner/work/_temp/wasmer-7.5.0/archive.tar.gz: OK
+2026-10-25T04:09:52.8446674Z wasmer 7.5.0
+2026-10-25T04:09:52.9502217Z ##[group]Run set -euo pipefail
+2026-10-25T04:09:52.9502763Z [36;1mset -euo pipefail[0m
+2026-10-25T04:09:52.9503195Z [36;1m"$WASIX_GO" version[0m
+2026-10-25T04:09:52.9503598Z [36;1mcd spike/hosted[0m
+2026-10-25T04:09:52.9504002Z [36;1m"$WASIX_GO" mod verify[0m
+2026-10-25T04:09:52.9504500Z [36;1m"$WASIX_GO" test -mod=readonly ./...[0m
+2026-10-25T04:09:52.9505681Z [36;1mGOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" build -mod=readonly -o "$RUNNER_TEMP/hosted.wasm" .[0m
+2026-10-25T04:09:52.9507017Z [36;1mGOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" test -mod=readonly -c -o "$RUNNER_TEMP/hosted-tests.wasm" .[0m
+2026-10-25T04:09:52.9591384Z shell: /usr/bin/bash -e {0}
+2026-10-25T04:09:52.9591686Z env:
+2026-10-25T04:09:52.9591938Z   WASIX_GO: /home/runner/work/_temp/wasix-go/bin/go
+2026-10-25T04:09:52.9592325Z   WASMER_DIR: /home/runner/work/_temp/wasmer-7.5.0
+2026-10-25T04:09:52.9592643Z   GOTOOLCHAIN: local
+2026-10-25T04:09:52.9592864Z ##[endgroup]
+2026-10-25T04:09:53.0483793Z go version go1.25.5 linux/amd64
+2026-10-25T04:09:53.8485408Z all modules verified
+2026-10-25T04:09:53.8700530Z go: downloading github.com/modelcontextprotocol/go-sdk v1.8.1-0.20261023154812-2e00768cde3f
+2026-10-25T04:09:53.8707593Z go: downloading github.com/open-policy-agent/opa v1.9.0
+2026-10-25T04:09:54.1222076Z go: downloading github.com/google/jsonschema-go v0.4.3
+2026-10-25T04:09:54.1251625Z go: downloading github.com/yosida95/uritemplate/v3 v3.0.2
+2026-10-25T04:09:54.1406461Z go: downloading golang.org/x/oauth2 v0.35.0
+2026-10-25T04:09:54.1851480Z go: downloading golang.org/x/sync v0.20.0
+2026-10-25T04:09:54.1900870Z go: downloading golang.org/x/time v0.15.0
+2026-10-25T04:09:54.2030130Z go: downloading github.com/segmentio/encoding v0.5.4
+2026-10-25T04:09:54.4158084Z go: downloading github.com/segmentio/asm v1.2.0
+2026-10-25T04:09:54.4706938Z go: downloading golang.org/x/sys v0.41.0
+2026-10-25T04:09:55.5428078Z go: downloading gopkg.in/yaml.v3 v3.0.1
+2026-10-25T04:09:55.5429121Z go: downloading github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
+2026-10-25T04:09:55.5429918Z go: downloading github.com/cespare/xxhash/v2 v2.3.0
+2026-10-25T04:09:55.5444456Z go: downloading github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
+2026-10-25T04:09:55.5619344Z go: downloading sigs.k8s.io/yaml v1.6.0
+2026-10-25T04:09:55.5676722Z go: downloading github.com/gobwas/glob v0.2.3
+2026-10-25T04:09:55.5681547Z go: downloading github.com/lestrrat-go/jwx/v3 v3.0.11
+2026-10-25T04:09:55.7200866Z go: downloading go.opentelemetry.io/otel/sdk v1.38.0
+2026-10-25T04:09:55.7201650Z go: downloading github.com/prometheus/client_golang v1.23.2
+2026-10-25T04:09:55.7202284Z go: downloading github.com/tchap/go-patricia/v2 v2.3.3
+2026-10-25T04:09:55.7202874Z go: downloading github.com/vektah/gqlparser/v2 v2.5.30
+2026-10-25T04:09:55.7755543Z go: downloading go.opentelemetry.io/otel v1.38.0
+2026-10-25T04:09:55.8500077Z go: downloading github.com/yashtewari/glob-intersection v0.2.0
+2026-10-25T04:09:55.8525828Z go: downloading github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb
+2026-10-25T04:09:55.8535437Z go: downloading go.yaml.in/yaml/v2 v2.4.2
+2026-10-25T04:09:55.8760648Z go: downloading github.com/lestrrat-go/option/v2 v2.0.0
+2026-10-25T04:09:55.8782369Z go: downloading github.com/lestrrat-go/blackmagic v1.0.4
+2026-10-25T04:09:55.8914054Z go: downloading github.com/lestrrat-go/option v1.0.1
+2026-10-25T04:09:55.8931258Z go: downloading github.com/lestrrat-go/httprc/v3 v3.0.1
+2026-10-25T04:09:55.9074909Z go: downloading github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
+2026-10-25T04:09:55.9131932Z go: downloading github.com/lestrrat-go/dsig v1.0.0
+2026-10-25T04:09:55.9630484Z go: downloading github.com/valyala/fastjson v1.6.4
+2026-10-25T04:09:55.9754469Z go: downloading github.com/go-ini/ini v1.67.0
+2026-10-25T04:09:55.9777833Z go: downloading github.com/google/uuid v1.6.0
+2026-10-25T04:09:56.0028729Z go: downloading github.com/beorn7/perks v1.0.1
+2026-10-25T04:09:56.0038459Z go: downloading github.com/prometheus/client_model v0.6.2
+2026-10-25T04:09:56.0185682Z go: downloading github.com/prometheus/common v0.66.1
+2026-10-25T04:09:56.0675545Z go: downloading google.golang.org/protobuf v1.36.9
+2026-10-25T04:09:56.0688392Z go: downloading github.com/prometheus/procfs v0.17.0
+2026-10-25T04:09:56.0731767Z go: downloading github.com/lestrrat-go/httpcc v1.0.1
+2026-10-25T04:09:56.3216901Z go: downloading github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
+2026-10-25T04:09:56.3222250Z go: downloading go.opentelemetry.io/otel/metric v1.38.0
+2026-10-25T04:09:56.3222754Z go: downloading go.opentelemetry.io/otel/trace v1.38.0
+2026-10-25T04:09:56.3914612Z go: downloading github.com/agnivade/levenshtein v1.2.1
+2026-10-25T04:09:56.4067370Z go: downloading golang.org/x/crypto v0.42.0
+2026-10-25T04:09:56.4075308Z go: downloading github.com/go-logr/logr v1.4.3
+2026-10-25T04:09:56.4077853Z go: downloading github.com/go-logr/stdr v1.2.2
+2026-10-25T04:09:56.4078282Z go: downloading go.opentelemetry.io/auto/sdk v1.1.0
+2026-10-25T04:10:28.1116235Z ok  	example.invalid/webhook-router/hosted	0.046s
+2026-10-25T04:10:56.3832942Z ##[group]Run python3 ci/wasix-service-check.py "$RUNNER_TEMP/hosted.wasm" "$RUNNER_TEMP/hosted-tests.wasm"
+2026-10-25T04:10:56.3833734Z [36;1mpython3 ci/wasix-service-check.py "$RUNNER_TEMP/hosted.wasm" "$RUNNER_TEMP/hosted-tests.wasm"[0m
+2026-10-25T04:10:56.3897652Z shell: /usr/bin/bash -e {0}
+2026-10-25T04:10:56.3897911Z env:
+2026-10-25T04:10:56.3898151Z   WASIX_GO: /home/runner/work/_temp/wasix-go/bin/go
+2026-10-25T04:10:56.3898521Z   WASMER_DIR: /home/runner/work/_temp/wasmer-7.5.0
+2026-10-25T04:10:56.3898829Z ##[endgroup]
+2026-10-25T04:11:12.3268306Z {"stage": "actual-service-ip", "exit_code": 0, "stdout": "=== RUN   TestGuestNetwork\n--- PASS: TestGuestNetwork (1.23s)\nPASS\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T04:11:14.1541030Z {"stage": "actual-service-tcp-dns", "exit_code": 0, "stdout": "=== RUN   TestGuestNetwork\n--- PASS: TestGuestNetwork (1.26s)\nPASS\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T04:11:27.9648760Z PASS: official SDK CGI guest initialize/tools/create/fresh-instance readback; no hosted/outbound claim
+2026-10-25T04:11:35.3609656Z PASS Wasmer guest official SDK events discovery/challenge/subscribe/fresh-readback/renew/unsubscribe + signed ingress/native OPA/independent HTTPS signed receipt
+2026-10-25T04:11:35.7179878Z PASS actual service fork IP/TCP-DNS/TLS/concurrency/cancellation and fresh-guest SDK/events/OPA checks; no managed Edge claim
+2026-10-25T04:11:35.7389794Z Post job cleanup.
+2026-10-25T04:11:35.8263627Z [command]/usr/bin/git version
+2026-10-25T04:11:35.8309942Z git version 2.55.0
+2026-10-25T04:11:35.8350332Z Temporarily overriding HOME='/home/runner/work/_temp/18d24988-789b-49b6-ba3f-7e7e8d0b7838' before making global git config changes
+2026-10-25T04:11:35.8351635Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T04:11:35.8359788Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T04:11:35.8405281Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T04:11:35.8450432Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T04:11:35.8711762Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T04:11:35.8759554Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T04:11:35.9029719Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T04:11:35.9080254Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T04:11:35.9511372Z Cleaning up orphan processes
+2026-10-25T04:11:35.9961510Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
