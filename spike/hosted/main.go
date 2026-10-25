@@ -281,6 +281,11 @@ type eventDiscoveryResult struct {
 }
 
 func (r *eventDiscoveryResult) MarshalJSON() ([]byte, error) {
+	// The SDK annotates known concrete results after middleware. Preserve the
+	// required completion marker when wrapping a 2026 discovery result.
+	if discover, ok := r.value.(*mcp.DiscoverResult); ok {
+		discover.ResultType = "complete"
+	}
 	body, err := json.Marshal(r.value)
 	if err != nil {
 		return nil, err
@@ -296,7 +301,14 @@ func (r *eventDiscoveryResult) MarshalJSON() ([]byte, error) {
 	}
 	caps["events"] = map[string]any{}
 	if meta := r.GetMeta(); len(meta) > 0 {
-		value["_meta"] = meta
+		previous, _ := value["_meta"].(map[string]any)
+		if previous == nil {
+			previous = map[string]any{}
+		}
+		for k, v := range meta {
+			previous[k] = v
+		}
+		value["_meta"] = previous
 	}
 	return json.Marshal(value)
 }

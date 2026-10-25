@@ -1,7 +1,7 @@
 name: Actual SDK OPA WASIX service checks
 on:
   push:
-    paths: ['.github/workflows/wasix-service.yml', 'spike/hosted/**', 'ci/wasix-service-check.py', 'ci/install-wasix-go.sh']
+    paths: ['.github/workflows/wasix-service.yml', 'spike/hosted/**', 'ci/wasix-service-check.py', 'ci/events-cgi-check.py', 'ci/install-wasix-go.sh']
   workflow_dispatch:
 permissions:
   contents: read

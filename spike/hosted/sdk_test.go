@@ -67,6 +67,7 @@ func eventRPC(t *testing.T, f *fixture, version, method string, params map[strin
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("MCP-Protocol-Version", version)
+	req.Header.Set("Mcp-Method", method)
 	out := httptest.NewRecorder()
 	handler(f).ServeHTTP(out, req)
 	var response map[string]any

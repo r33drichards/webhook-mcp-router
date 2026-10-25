@@ -29,4 +29,5 @@ with tempfile.TemporaryDirectory() as tmp:
         assert Sink.receipts==[b'synthetic-nonce']*5,'independent host did not receive all concurrent requests'
         server.shutdown()
     subprocess.run([sys.executable,'ci/sdk-cgi-check.py',service],check=True)
+    subprocess.run([sys.executable,'ci/events-cgi-check.py',service],check=True)
     print('PASS actual service fork build/network suite and fresh-guest SDK persistence; no managed Edge claim')
