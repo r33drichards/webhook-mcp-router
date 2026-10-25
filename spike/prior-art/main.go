@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -80,7 +81,7 @@ func run() error {
 		fmt.Println("PASS https-sync-diagnostic")
 		return nil
 	}
-	if mode != "https" {
+	if mode != "https" && mode != "https-nonblock" {
 		c, e := tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", addr, cfg)
 		if c != nil {
 			c.Close()
@@ -101,7 +102,18 @@ func run() error {
 		fmt.Println("PASS", mode)
 		return nil
 	}
-	client := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: cfg, Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect") }}
+	transport := &http.Transport{TLSClientConfig: cfg, Proxy: nil}
+	if mode == "https-nonblock" {
+		dialer := &net.Dialer{Timeout: 5 * time.Second, Control: func(network, address string, raw syscall.RawConn) error {
+			var inner error
+			if err := raw.Control(func(fd uintptr) { inner = syscall.SetNonblock(int(fd), true) }); err != nil {
+				return err
+			}
+			return inner
+		}}
+		transport.DialContext = dialer.DialContext
+	}
+	client := &http.Client{Timeout: 5 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect") }}
 	resp, e := client.Post("https://"+addr+"/synthetic", "text/plain", strings.NewReader("synthetic-nonce"))
 	if e != nil {
 		return e
@@ -114,6 +126,6 @@ func run() error {
 	if resp.StatusCode != 200 || string(body) != "synthetic-nonce" {
 		return errors.New("HTTP receipt mismatch")
 	}
-	fmt.Println("PASS https")
+	fmt.Println("PASS", mode)
 	return nil
 }
