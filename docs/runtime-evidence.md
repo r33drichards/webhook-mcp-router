@@ -1,3 +1,31 @@
+## Official baseline also fails: stop deployment retries
+
+Official WCGI run40166166069 failed at 05:38:25 UTC with eight hosted HTTP500 GET responses. Its pinned upstream Rust source, locked build and local Wasmer synthetic greetings passed; the 193.4 KiB module has only six preview1 imports. Stock-Go constant run40165762867 had also failed with eight HTTP500 responses. The official baseline removed custom mappings/volume mounts without deleting remote volumes. No service credentials were created; their absence was checked before and after deployment.
+
+Full reproducible blocker, exact module digest, source/toolchain/configuration and comparison matrix: docs/edge-wcgi-blocker.md. Stop further full-service retries pending a concrete platform/package diagnostic. Precise root cause remains unknown; this is not proof of a Wasmer bug or an MCP/OPA defect. No hosted MCP lifecycle success is claimed. Parent browser should remove the three temporary GitHub environment secrets now; retain WASMER_TOKEN. App/package history and detached synthetic volumes remain.
+
+## Constant CGI comparison: local pass, Edge HTTP 500
+
+[Run 40165387023](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40165387023), commit d6d353c6e09c2094b7bd3ea06e0f7f16274f6767, failed at 05:25:17 UTC. Same pinned WASIX compiler and existing WCGI package configuration, but standard-library-only CGI code without SDK/OPA: local Wasmer health 200 and nonfunctional /mcp 404 passed. Hosted health returned HTTP 500 on all eight attempts. All responses exceeded the bounded read size and yielded no application startup code. No POC service credentials were supplied or created; pre/post-deployment approved-secret-name absence checks passed.
+
+wasmer inspect reports the constant module at 5.1 MiB, _start exported, unshared memory initially 56 pages, standard preview1 imports plus WASIX getcwd only. Integrated comparison is 46.1 MiB, _start exported, initially 359 pages, and additional WASIX process/socket imports. Both execute locally. Therefore SDK/OPA initialization and integrated-only imports are not sufficient explanations for the common hosted failure. Remaining shared factors include Go/WASIX runtime, CGI metadata/stdio handling, and package/platform configuration; the existing volume configuration was deliberately retained. No root cause is established and no new hosted retry has been dispatched.
+
+## Credential-free packaged CGI diagnostic failed on Edge before fixture setup
+
+[Run 40164818062](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40164818062), commit 00c7c518fe165592ace83168a290d2b8507824e0, failed at 05:17:24 UTC. Native tests and actual local Wasmer CGI assertions passed: health 200 with runtime-ready, /mcp 503 with POC_SIGNING_CONFIG_INVALID, both guest exits 0. Hosted health returned one 503 then seven 500 responses, all exceeding the 65,536-byte read bound, without a recognized startup code. No service credentials were supplied or created; pre/post-deployment metadata checks confirmed approved service-secret names absent.
+
+This isolates the hosted failure before fixture setup, since the health route never loads credentials, storage, registered policies or MCP handlers. It does not distinguish package/linking/runtime startup, Go CGI parsing, platform routing, or module initialization. Local Wasmer success does not establish Edge compatibility. No root cause or hosted MCP success is claimed. The next useful comparison is a minimal constant CGI handler without SDK/OPA imports under the same compiler/package, followed by stock Go only if needed; avoid restoring credentials until packaged health works.
+
+## Third attempt: HTTP 500 established; credential-free diagnostic prepared
+
+[Run 40163890496](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40163890496) returned HTTP 500 for all 24 hosted initialize attempts. Twenty-one responses exceeded the 65,536-byte diagnostic bound; three smaller responses were non-JSON. No fixed recognized error marker matched. This establishes server-side failure, not its underlying cause. Browser inspection of the attempt interval returned no logs. A later credential-free request showed Wasmer's Application Error template with “An unknown error occurred”, which does not identify the credential-bearing failure.
+
+Cleanup passed at 05:04:40 UTC: three Wasmer secrets absent, credential-free redeployment complete, old bearer rejected. GitHub environment secrets remain parent-owned pending cleanup. No full hosted lifecycle passed and no subsequent hosted attempt has been dispatched by this worker.
+
+Commit 00c7c518fe165592ace83168a290d2b8507824e0 prepares a single credential-free startup diagnostic: constant GET /_poc/health without configuration or storage access, and fixed startup error codes for normal routes. Functional routes retain authentication. The manual workflow uses only existing WASMER_TOKEN, refuses existing POC service-secret names, and creates none. Native and actual guest tests run before any deployment. Details: docs/startup-diagnostic.md. Integrated runtime CI run40164575129 passed, and the SDK build job passed the new credential-free Wasmer CGI startup assertions. Local Python/YAML checks and eight lifecycle tests passed.
+
+A local no-authorization request to the current app was blocked before reaching Wasmer by proxy CONNECT 403. No alternate local route or bypass was attempted.
+
 ## Second hosted attempt: initialization blocked; Wasmer credentials removed
 
 [Run 40163168128](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40163168128), commit 1df4f534ab8d4966156883e93c44eadc05b146b6, completed with failure on October 25, 2026 at 04:53 UTC. Exact-candidate native/build/local Wasmer SDK/OPA/network/event regressions passed. Current envVars/updateEnvVars API successfully created and verified all three approved sensitive credentials on canonical app da_K6AIot5U1ND7. Hosted initialize readiness exhausted its retries at 04:52:58; full hosted event lifecycle was skipped. The prior harness withheld status/body, so this does not establish the runtime cause.
