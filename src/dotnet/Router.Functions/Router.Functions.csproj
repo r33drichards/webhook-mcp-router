@@ -7,6 +7,9 @@
   <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
   <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Mcp" Version="1.5.0" />
   <ProjectReference Include="../Router.Core/Router.Core.csproj" />
+  <ProjectReference Include="../Router.Auth/Router.Auth.csproj" />
+  <ProjectReference Include="../Router.Storage/Router.Storage.csproj" />
+  <ProjectReference Include="../Router.Mcp/Router.Mcp.csproj" />
  </ItemGroup>
  <ItemGroup><None Update="host.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

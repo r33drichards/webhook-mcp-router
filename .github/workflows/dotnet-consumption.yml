@@ -45,6 +45,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'LocalDB start failed' }
           dotnet run --project tests/dotnet/Router.Integration --configuration Release
           if ($LASTEXITCODE -ne 0) { throw 'SQL checks failed' }
+      - name: Test official SDK stateless tools and events
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.McpChecks --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'MCP SDK checks failed' }
+      - name: Test authenticated HTTP handlers with synthetic fixtures
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.HttpChecks --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'HTTP handler checks failed' }
       - name: Build isolated Functions MCP project
         shell: pwsh
         run: |

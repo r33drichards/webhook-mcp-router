@@ -15,6 +15,7 @@ public sealed record CaptureOptions(int MaxInputBytes=65536,int MaxStoredBytes=8
 public sealed class RequestCapture {
     private readonly CaptureOptions options;
     private readonly HashSet<string> secretFields;
+    private static readonly HashSet<string> SafeKeys=new(new[]{"action","number","id","type","body","data","repository","sender","pull_request","issue","ref","before","after","created","deleted","forced","commits","head_commit","installation","name","title","state","labels","draft","merged","user","login","url","description","message","token","password","secret","authorization","cookie","key"},StringComparer.Ordinal);
     public RequestCapture(CaptureOptions? options=null) {
         this.options=options??new();
         if(this.options.MaxInputBytes is <1 or >65536||this.options.MaxStoredBytes is <128 or >8192||this.options.RetentionDays is <1 or >7||this.options.MaxRows is <1 or >10000)throw new ArgumentException("CAPTURE_LIMIT_INVALID");
@@ -39,7 +40,7 @@ public sealed class RequestCapture {
         if(node is JsonObject obj) {
             foreach(var name in obj.Select(p=>p.Key).ToArray()) {
                 // Property names can also contain credentials: only retain bounded identifier keys.
-                if(name.Length>64||!name.All(c=>char.IsAsciiLetterOrDigit(c)||c=='_'||c=='-')){obj.Remove(name);redacted=true;continue;}
+                if(!SafeKeys.Contains(name)||name.Length>64||!name.All(c=>char.IsAsciiLetterOrDigit(c)||c=='_'||c=='-')){obj.Remove(name);redacted=true;continue;}
                 if(secretFields.Any(s=>name.Contains(s,StringComparison.OrdinalIgnoreCase))||obj[name] is JsonValue v&&v.TryGetValue<string>(out _)){obj[name]="[REDACTED]";redacted=true;}
                 else Sanitize(obj[name],ref redacted);
             }
