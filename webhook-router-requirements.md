@@ -1,8 +1,8 @@
 # Webhook router requirements
 
-Status: active synthetic POC implementation and runtime validation, updated 2026-10-25. Public repository: https://github.com/r33drichards/webhook-mcp-router. Publication and CI are authorized; the earlier ideation-only/no-push restrictions are withdrawn. One minimal free-tier Wasmer hosted E2E is authorized after real readiness checks. New hosted credentials, paid resources, production hooks/data and unrelated access changes remain unapproved.
+Status: active synthetic POC implementation and runtime validation, updated 2026-10-25. Public repository: https://github.com/r33drichards/webhook-mcp-router. Publication and CI are authorized; the earlier ideation-only/no-push restrictions are withdrawn. One minimal free-tier Wasmer hosted E2E is authorized after real readiness checks. The user approved three temporary synthetic POC credentials, subsequently removed from Wasmer; parent-owned GitHub environment cleanup remains pending. Paid resources, production hooks/data and unrelated access changes remain unapproved.
 
-The goal is one service that receives external webhooks, evaluates editable native OPA/Rego policies, and routes selected data to registered MCP webhook subscriptions. GitHub is the first provider. Tests use synthetic events only. No hosted deployment or hosted E2E success has occurred.
+The goal is one service that receives external webhooks, evaluates editable native OPA/Rego policies, and routes selected data to registered MCP webhook subscriptions. GitHub is the first provider. Tests use synthetic events only. Isolated hosted deployments occurred, but hosted E2E has not succeeded. The official Rust WCGI baseline also returned HTTP500 on all eight hosted GET attempts (run40166166069), despite local Wasmer success. Further full-service retries are paused pending a concrete platform/package diagnostic; see docs/edge-wcgi-blocker.md. No service credentials were created during the credential-free comparison runs.
 
 ## Current evidence and limits
 
