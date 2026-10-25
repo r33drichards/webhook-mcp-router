@@ -1,0 +1,44 @@
+name: Diagnose hosted CGI request envelope
+on:
+  push:
+    paths: ['.github/workflows/cgi-envelope.yml', 'spike/cgi-envelope/**', 'ci/build-envelope.sh', 'ci/envelope-guest-check.py', 'ci/envelope-hosted-check.py']
+  workflow_dispatch:
+    inputs:
+      confirm_no_spend:
+        description: Verify free allowance for one credential-free CGI request-envelope diagnostic
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: bash ci/install-wasmer.sh
+      - name: Locked official template build, module inspection and guest assertions
+        run: bash ci/build-envelope.sh
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.confirm_no_spend
+    environment: wasmer-poc
+    concurrency:
+      group: synthetic-wasmer-poc
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: bash ci/install-wasmer.sh
+      - name: Rebuild and reassert official template before writes
+        run: bash ci/build-envelope.sh
+      - name: Deploy minimal official configuration and assert synthetic replies
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: python3 ci/envelope-hosted-check.py
