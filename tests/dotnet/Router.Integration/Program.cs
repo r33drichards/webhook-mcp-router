@@ -54,6 +54,18 @@ try {
  var genericClaim=await genericOutbox.ClaimAsync(TimeSpan.FromSeconds(30),ct);
  Check(genericClaim is not null&&genericClaim.SubscriptionId=="dest-shared"&&genericClaim.Body=="{\"synthetic\":true}","SQL generic outbox maps destination and raw payload");
  Check(await genericOutbox.CompleteAsync(genericClaim!.Id,genericClaim.Lease,ct),"SQL generic lease completion");
+ var managerTenant=new TenantContext("tenant-a","manager",["destinations:read","destinations:write"]);
+ var managed=new DestinationManagement(managerTenant,new SqlDestinationStore(connection,managerTenant),[new("approved","https://approved.example.invalid/hook","key_alias")]);
+ var registered=await managed.RegisterAsync("approved","Synthetic managed",["review"],ct);
+ Check(!registered.Enabled,"SQL management registers destination disabled");
+ await managed.SetEnabledAsync(registered.Id,true,ct);
+ await managed.UpdateAsync(registered.Id,"Renamed",["changed"],ct);
+ var page=await managed.ListAsync(1,null,ct);
+ Check(page.Items.Count==1&&page.NextAfter is not null,"SQL destination keyset pagination bounded");
+ var page2=await managed.ListAsync(100,page.NextAfter,ct);
+ Check(!page2.Items.Any(x=>x.Id==page.Items[0].Id),"SQL destination pagination does not repeat prior item");
+ var caseTenant=new TenantContext("TENANT-A","case-client",["destinations:read"]);
+ Check((await new SqlDestinationStore(connection,caseTenant).ListAsync(caseTenant.TenantId,100,null,ct)).Items.Count==0,"SQL identifier collation prevents case-folded tenant leakage");
  var capture=new RequestCapture();var sample=capture.Capture("POST","accepted",Encoding.UTF8.GetBytes("{\"token\":\"secret\",\"message\":\"private\",\"number\":3}"),true,"issues");
  Check(sample.Redacted&&!sample.Payload!.Contains("secret")&&!sample.Payload.Contains("private"),"payload credentials and free text redacted");
  Check(capture.Capture("POST","failed",Encoding.UTF8.GetBytes("\"secret\""),true).Payload=="\"[REDACTED]\"","root string redaction");

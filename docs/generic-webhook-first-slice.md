@@ -42,3 +42,7 @@ Remaining live prerequisites: healthy isolated Keycloak realm/client mapping, di
 Verified provider is TypeSafe System One POST https://api.typesafe.ai/v1/systemone, pinned model jev-1.14.0. Request state+named typed questions; response model+answers+usage. Noul is probability, not boolean; choice/score carry distributions and confidence. Later integrate validated enrichments.jev and evaluation provenance, with explicit mandatory-gate versus enrichment-only behavior. Jev send must never bypass downstream OPA/destination authorization. No IRC history semantics are imported. Actual HTTP integration, provider-key use, data-sharing approval and costs remain outside first slice.
 
 Primary sources: https://docs.typesafe.ai/api/system-one , https://docs.typesafe.ai/models , https://docs.typesafe.ai/confidence , https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries , https://docs.github.com/en/webhooks/webhook-events-and-payloads .
+
+## Dispatcher integration update
+
+See [generic-dispatch-activation.md](generic-dispatch-activation.md) for the new queue/timer, protected setting resolver, destination-management MCP tools, local HTTPS evidence and exact pending migration/grant/activation gates. Earlier unfinished-work descriptions above describe the pre-integration checkpoint; hosted activation remains blocked pending verification and operator configuration.

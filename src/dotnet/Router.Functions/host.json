@@ -5,7 +5,17 @@
     "mcp": {
       "serverName": "webhook-mcp-router",
       "serverVersion": "0.0.1",
-      "system": { "webhookAuthorizationLevel": "System" }
+      "system": {
+        "webhookAuthorizationLevel": "System"
+      }
+    },
+    "queues": {
+      "batchSize": 1,
+      "newBatchThreshold": 0,
+      "maxDequeueCount": 5,
+      "visibilityTimeout": "00:00:30",
+      "maxPollingInterval": "00:01:00",
+      "messageEncoding": "base64"
     }
   }
 }

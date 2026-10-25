@@ -25,6 +25,7 @@ def main():
     env=os.environ.copy();env.update(FUNCTIONS_WORKER_RUNTIME='dotnet-isolated',AzureWebJobsStorage='UseDevelopmentStorage=true',AzureWebJobsSecretStorageType='files',FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT='1')
     # No router configuration: prove fail-closed behavior, never configure an insecure auth fallback.
     env.pop('ROUTER_AUTH_JSON',None);env.pop('ROUTER_TENANTS_JSON',None)
+    env['AzureWebJobs.RouterDispatch.Disabled']='true';env['AzureWebJobs.RouterReconcile.Disabled']='true'
     out=open(folder/'host.stdout.log','w',encoding='utf-8');err=open(folder/'host.stderr.log','w',encoding='utf-8')
     proc=subprocess.Popen([args.func,'start','--no-build','--script-root',os.path.abspath(args.root),'--port','7071','--address','127.0.0.1'],env=env,stdout=out,stderr=err)
     success=False

@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 namespace Router.Core;
 
-public sealed class GenericIngestion(IRegistrationReader policies,IDestinationReader destinations,IOutbox outbox,OpaEvaluator opa,TenantContext tenant,byte[] ingressKey,string sourceId,long repositoryId):IIngressProcessor {
+public sealed class GenericIngestion(IRegistrationReader policies,IDestinationReader destinations,IOutbox outbox,OpaEvaluator opa,TenantContext tenant,byte[] ingressKey,string sourceId,long repositoryId,Func<CancellationToken,Task>? signal=null):IIngressProcessor {
     public async Task<bool> AcceptAsync(string deliveryId,string eventType,byte[] body,string signature,CancellationToken ct=default) {
         if(body.Length>65536||deliveryId.Length is 0 or >128||eventType.Length is 0 or >64)throw new InvalidOperationException("INGRESS_LIMIT");
         string expected="sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(ingressKey,body));
@@ -19,7 +19,10 @@ public sealed class GenericIngestion(IRegistrationReader policies,IDestinationRe
         // Policy deny/error/timeout produces no deliveries. Receipt still records this decision.
         var selected=preview.Allowed?preview.Routes:[];
         var deliveries=selected.Select(r=>new PendingDelivery("wh_"+Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(tenant.TenantId+":"+sourceId+":"+deliveryId+":"+r.DestinationId))),r.DestinationId,r.Payload.GetRawText())).ToArray();
-        return await outbox.AcceptAsync(sourceId,deliveryId,Convert.ToHexStringLower(SHA256.HashData(body)),deliveries,ct);
+        bool accepted=await outbox.AcceptAsync(sourceId,deliveryId,Convert.ToHexStringLower(SHA256.HashData(body)),deliveries,ct);
+        // SQL is authoritative. Signal failure surfaces a retryable error; daily reconciliation repairs a lost wake-up.
+        if(deliveries.Length>0&&signal is not null)await signal(ct);
+        return accepted;
     }
 }
 

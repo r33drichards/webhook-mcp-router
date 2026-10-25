@@ -2,7 +2,7 @@
 IF SCHEMA_ID('registry') IS NULL EXEC('CREATE SCHEMA registry');
 IF OBJECT_ID('registry.Destinations') IS NULL
 CREATE TABLE registry.Destinations (
- Owner varchar(64) NOT NULL, Id varchar(64) NOT NULL,
+ Owner varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL, Id varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL,
  Name nvarchar(128) NOT NULL, Tags nvarchar(4000) NOT NULL,
  Enabled bit NOT NULL DEFAULT 0, Revision rowversion NOT NULL,
  PRIMARY KEY(Owner,Id), CONSTRAINT DestinationTags_JSON CHECK(ISJSON(Tags)=1)
@@ -12,7 +12,7 @@ CREATE TABLE registry.Destinations (
 IF SCHEMA_ID('delivery') IS NULL EXEC('CREATE SCHEMA delivery');
 IF OBJECT_ID('delivery.DestinationConfig') IS NULL
 CREATE TABLE delivery.DestinationConfig (
- Owner varchar(64) NOT NULL, Id varchar(64) NOT NULL,
+ Owner varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL, Id varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL,
  Endpoint nvarchar(2048) NOT NULL, SigningKeyReference nvarchar(256) NOT NULL,
  PRIMARY KEY(Owner,Id), FOREIGN KEY(Owner,Id) REFERENCES registry.Destinations(Owner,Id)
 );
@@ -21,7 +21,7 @@ CREATE TABLE delivery.DestinationConfig (
 EXEC('CREATE OR ALTER TRIGGER delivery.DestinationConfigImmutable ON delivery.DestinationConfig INSTEAD OF UPDATE AS BEGIN THROW 51000, ''Destination binding is immutable; register a new ID'', 1; END');
 IF OBJECT_ID('delivery.WebhookOutbox') IS NULL
 CREATE TABLE delivery.WebhookOutbox (
- TenantId varchar(64) NOT NULL, Id varchar(68) NOT NULL, DestinationId varchar(64) NOT NULL,
+ TenantId varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL, Id varchar(68) COLLATE Latin1_General_100_BIN2 NOT NULL, DestinationId varchar(64) COLLATE Latin1_General_100_BIN2 NOT NULL,
  Body nvarchar(max) NOT NULL, Status varchar(8) NOT NULL DEFAULT 'pending',
  Available datetime2 NOT NULL DEFAULT SYSUTCDATETIME(), Lease uniqueidentifier NULL,
  LeaseUntil datetime2 NULL, Attempts int NOT NULL DEFAULT 0,
