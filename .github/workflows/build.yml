@@ -32,6 +32,8 @@ jobs:
         run: bash ci/install-wasmer.sh
       - name: Run official SDK CGI guest across fresh instances
         run: python3 ci/sdk-cgi-check.py /tmp/hosted.wasm
+      - name: Assert credential-free CGI startup isolation
+        run: python3 ci/startup-guest-check.py /tmp/hosted.wasm
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20

@@ -56,25 +56,34 @@ func loadFixture() (*fixture, error) {
 	if raw := os.Getenv("POC_EXPIRES_AT"); raw != "" {
 		expiry, err := time.Parse(time.RFC3339, raw)
 		if err != nil || !time.Now().Before(expiry) {
-			return nil, errors.New("synthetic test window expired")
+			return nil, startupError("POC_WINDOW_EXPIRED")
 		}
 	}
 	f := &fixture{state: os.Getenv("POC_STATE_DIR"), receipts: os.Getenv("POC_RECEIPT_DIR"), token: os.Getenv("POC_TEST_TOKEN"), receiptToken: os.Getenv("POC_RECEIPT_TOKEN"), callback: os.Getenv("POC_CALLBACK_URL")}
 	key, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(os.Getenv("POC_WEBHOOK_SECRET"), "whsec_"))
 	u, uerr := url.Parse(f.callback)
-	if err != nil || !strings.HasPrefix(os.Getenv("POC_WEBHOOK_SECRET"), "whsec_") || len(key) < 24 || len(key) > 64 || len(f.token) < 32 || len(f.receiptToken) < 32 || !filepath.IsAbs(f.state) || !filepath.IsAbs(f.receipts) || f.state == f.receipts || uerr != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return nil, errors.New("missing reviewed fixture configuration")
+	if err != nil || !strings.HasPrefix(os.Getenv("POC_WEBHOOK_SECRET"), "whsec_") || len(key) < 24 || len(key) > 64 {
+		return nil, startupError("POC_SIGNING_CONFIG_INVALID")
+	}
+	if len(f.token) < 32 || len(f.receiptToken) < 32 {
+		return nil, startupError("POC_ACCESS_CONFIG_INVALID")
+	}
+	if !filepath.IsAbs(f.state) || !filepath.IsAbs(f.receipts) || f.state == f.receipts {
+		return nil, startupError("POC_STORAGE_CONFIG_INVALID")
+	}
+	if uerr != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return nil, startupError("POC_CALLBACK_CONFIG_INVALID")
 	}
 	f.key = key
 	// Destination is a trusted operator-configured fixed sink, never RPC input.
 	// No ambient proxies or redirects; verified WASIX nonblocking transport.
 	f.client, err = newHTTPClient()
 	if err != nil {
-		return nil, err
+		return nil, startupError("POC_HTTP_CLIENT_INIT_FAILED")
 	}
 	for _, d := range []string{f.state, f.receipts, filepath.Join(f.state, "policies")} {
 		if err := os.MkdirAll(d, 0700); err != nil {
-			return nil, errors.New("storage unavailable")
+			return nil, startupError("POC_STORAGE_INIT_FAILED")
 		}
 	}
 	return f, nil

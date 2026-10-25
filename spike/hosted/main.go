@@ -83,13 +83,45 @@ func handler(f *fixture) http.Handler {
 	mux.HandleFunc("/receipts", f.receiptHandler)
 	return mux
 }
+
+// startupError contains only a fixed developer-defined code, never config values.
+type startupError string
+
+func (e startupError) Error() string { return string(e) }
+func startupHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// This is the only credential-free path. No config, files, OPA or MCP
+		// handlers are accessed; it proves the packaged CGI runtime can reply.
+		if r.URL.Path == "/_poc/health" {
+			w.Header().Set("Cache-Control", "no-store")
+			if r.Method != http.MethodGet {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"status":"runtime-ready"}`)
+			return
+		}
+		f, err := loadFixture()
+		if err != nil {
+			code := "POC_STARTUP_FAILED"
+			var known startupError
+			if errors.As(err, &known) {
+				code = string(known)
+			}
+			fmt.Fprintln(os.Stderr, code)
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
+			return
+		}
+		handler(f).ServeHTTP(w, r)
+	})
+}
 func main() {
-	f, err := loadFixture()
-	if err == nil {
-		err = cgi.Serve(handler(f))
-	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "synthetic CGI configuration or execution failed")
+	if err := cgi.Serve(startupHandler()); err != nil {
+		fmt.Fprintln(os.Stderr, "POC_CGI_SERVE_FAILED")
 		os.Exit(1)
 	}
 }

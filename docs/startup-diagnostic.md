@@ -1,0 +1,11 @@
+# Targeted credential-free startup diagnostic
+
+Run 40163890496 returned HTTP 500 on all 24 initialize attempts, with mostly oversized platform HTML responses. Hosted lifecycle was skipped; Wasmer secret removal, credential-free redeployment and old-bearer rejection were verified at 05:04:40 UTC. Browser logs did not expose errors during the initialization interval. The current unauthenticated error page says Application Error / An unknown error occurred; it does not establish the earlier cause.
+
+The candidate now separates packaged CGI startup from fixture initialization. GET /_poc/health returns only a constant runtime-ready status, without inspecting environment values, opening storage or constructing MCP/OPA handlers. Other methods on that route return 405. Functional routes still load the fixture and enforce existing authentication. Invalid startup configuration emits fixed developer-defined codes to stderr and a 503 JSON response; values and underlying exceptions are never included.
+
+Manual workflow: **Diagnose credential-free packaged CGI startup**, main, confirm_no_spend=true after current free allowance verification. It uses only existing WASMER_TOKEN, refuses to proceed if any approved POC service-secret name exists, tests native code and actual guest responses, and deploys the same isolated app once. It expects hosted health 200, then /mcp 503 with POC_SIGNING_CONFIG_INVALID because signing credentials deliberately remain absent. No POC credentials are restored or created. This is a diagnostic deployment, not MCP or event-delivery success.
+
+Interpretation: failed health isolates the failure before fixture configuration; successful health plus the expected fixed code proves WCGI-to-Go handling, but not functional authenticated configuration. Unexpected codes identify a narrower stage. Any full lifecycle retry still requires reviewing the diagnostic evidence; this workflow does not dispatch one automatically.
+
+Current local validation: Python scripts compile, workflow YAML parses, eight lifecycle tests pass. Native Go and actual Wasmer startup assertions are pending CI, not claimed locally. The local unauthenticated endpoint probe was blocked by proxy CONNECT 403; no bypass or alternative local route was attempted.

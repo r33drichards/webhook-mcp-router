@@ -223,7 +223,31 @@ routes := [{"subscription_id":"`+id+`","data":{"nonce":input.nonce}}]`); err != 
 
 func TestExpiredHostedWindowFailsClosed(t *testing.T) {
 	t.Setenv("POC_EXPIRES_AT", "2000-01-01T00:00:00Z")
-	if _, err := loadFixture(); err == nil || err.Error() != "synthetic test window expired" {
+	if _, err := loadFixture(); err == nil || err.Error() != "POC_WINDOW_EXPIRED" {
 		t.Fatal("expired hosted window accepted")
+	}
+}
+
+func TestCredentialFreeStartupProbe(t *testing.T) {
+	for _, name := range []string{"POC_TEST_TOKEN", "POC_RECEIPT_TOKEN", "POC_WEBHOOK_SECRET", "POC_STATE_DIR", "POC_RECEIPT_DIR", "POC_EXPIRES_AT"} {
+		t.Setenv(name, "")
+	}
+	h := startupHandler()
+	for _, tc := range []struct {
+		method, path string
+		status       int
+		body         string
+	}{
+		{"GET", "/_poc/health", 200, `{"status":"runtime-ready"}`},
+		{"POST", "/_poc/health", 405, ""},
+		{"GET", "/mcp", 503, "POC_SIGNING_CONFIG_INVALID"},
+		{"GET", "/receipts", 503, "POC_SIGNING_CONFIG_INVALID"},
+		{"POST", "/hooks/github", 503, "POC_SIGNING_CONFIG_INVALID"},
+	} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
+		if w.Code != tc.status || !strings.Contains(w.Body.String(), tc.body) {
+			t.Fatalf("unexpected startup result for %s", tc.path)
+		}
 	}
 }
