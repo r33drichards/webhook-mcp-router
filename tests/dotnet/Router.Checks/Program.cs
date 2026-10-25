@@ -148,6 +148,35 @@ var trialPipeline=new PolicyPipeline(tenantForPipeline,[new(100,"trial",new OpaR
 Check((await trialPipeline.PreviewAsync(ctx,Json(reviewBody))).Routes.Single().DestinationId=="dest_one","actual trial policy selects database review tag");
 Check(!(await trialPipeline.PreviewAsync(ctx with{EventType="push"},Json(reviewBody))).Allowed,"actual trial policy defaults deny other events");
 
+
+foreach(var address in new[]{"127.0.0.1","10.0.0.1","169.254.169.254","192.168.1.1","100.64.0.1","198.18.0.1","203.0.113.1","::1","::ffff:127.0.0.1","fe80::1","fc00::1","2001:db8::1","2002:7f00:1::1","3fff::1"})
+ Check(!SafeWebhookTransport.IsPublic(System.Net.IPAddress.Parse(address)),"SSRF address denied "+address);
+Check(SafeWebhookTransport.IsPublic(System.Net.IPAddress.Parse("1.1.1.1"))&&SafeWebhookTransport.IsPublic(System.Net.IPAddress.Parse("2606:4700:4700::1111")),"public IPv4 and IPv6 recognized without connecting");
+foreach(var endpoint in new[]{"http://example.invalid","https://127.0.0.1","https://example.invalid:444","https://user:pass@example.invalid","https://example.invalid/?token=fixture","https://example.invalid/#fragment"}) {
+ try{SafeWebhookTransport.ValidateEndpoint(new Uri(endpoint));throw new Exception("unsafe URL accepted");}catch(InvalidOperationException){Console.WriteLine("PASS prohibited destination URL form");}
+}
+using(var signed=SafeWebhookTransport.CreateSignedRequest(new Uri("https://sink.example.invalid/hook"),"wh_synthetic",Bytes("{}"),ingressKey)) {
+ Check(signed.Headers.GetValues("X-Webhook-Signature-256").Single()==Sign(Bytes("{}")),"generic callback HMAC covers exact output bytes");
+ Check(signed.Headers.GetValues("X-Webhook-Delivery").Single()=="wh_synthetic","generic callback stable delivery header");
+}
+var genericStore=new MemoryWebhookOutbox();var genericRegistry=new FixedPolicyReader(trialPolicy);var genericMetadata=new FixedDestinationReader(metadataDestinations.Where(d=>d.TenantId=="tenant-test").ToArray());
+var genericIngress=new GenericIngestion(genericRegistry,genericMetadata,genericStore,evaluator,tenantForPipeline,ingressKey,"mcp-js-github",961207108);
+var reviewBytes=Bytes(reviewBody);
+Check(await genericIngress.AcceptAsync(delivery,"pull_request",reviewBytes,Sign(reviewBytes)),"generic ingress evaluates selected OPA policy and queues");
+Check(genericStore.Pending!.SubscriptionId=="dest_one"&&Json(genericStore.Pending.Body).GetProperty("action").GetString()=="labeled","generic queue contains destination ID and payload, no MCP envelope");
+Check(!await genericIngress.AcceptAsync(delivery,"pull_request",reviewBytes,Sign(reviewBytes)),"generic ingress duplicate receipt does not duplicate queue");
+var emptyStore=new MemoryWebhookOutbox();
+await new GenericIngestion(new EmptyRegistry(),genericMetadata,emptyStore,evaluator,tenantForPipeline,ingressKey,"mcp-js-github",961207108).AcceptAsync(delivery,"push",reviewBytes,Sign(reviewBytes));
+Check(emptyStore.Pending is null,"all-event ingestion with no policy records receipt but never forwards");
+var resolver=new FixedProtectedResolver();var secretProvider=new SyntheticSecrets();var deliveryTransport=new SyntheticWebhookTransport();
+Check(await new GenericDeliveryProcessor(resolver,secretProvider,genericStore,tenantForPipeline,deliveryTransport).OnceAsync(),"generic dispatcher consumes queued destination");
+Check(genericStore.Completed&&deliveryTransport.Calls==1&&resolver.LastTenant=="tenant-test"&&secretProvider.Buffer!.All(b=>b==0),"private destination resolution scoped; success completes and secret buffer cleared");
+var retryStore=new MemoryWebhookOutbox();await retryStore.AcceptAsync("source","id",new string('a',64),[new("wh_failure","dest_one","{}")],default);
+var failingTransport=new SyntheticWebhookTransport{Success=false};
+await new GenericDeliveryProcessor(resolver,new SyntheticSecrets(),retryStore,tenantForPipeline,failingTransport).OnceAsync();
+Check(retryStore.Retried&&!retryStore.Completed,"generic delivery failure uses bounded durable retry");
+
+Check((await trialPipeline.PreviewAsync(ctx,Json(reviewBody.Replace("never send this to enrichment",new string('x',16000))))).Allowed,"bounded generic payload above log limit remains deliverable");
 sealed class EmptyRegistry:IRegistrationReader {
  public int Reads;
  public Task<RegistrationSnapshot> SnapshotAsync(string owner,CancellationToken ct){Reads++;return Task.FromResult(new RegistrationSnapshot([],[]));}
@@ -172,4 +201,30 @@ sealed class SyntheticStage(Func<StageInput,CancellationToken,Task<StageOutput>>
 sealed class SyntheticDecisionProvider:IDecisionProvider {
  public string? Last;
  public Task<DecisionResult> DecideAsync(JsonElement projection,CancellationToken ct){Last=projection.GetRawText();return Task.FromResult(new DecisionResult(true,JsonSerializer.SerializeToElement(new{approved=true})));}
+}
+
+sealed class FixedPolicyReader(string source):IRegistrationReader {
+ public Task<RegistrationSnapshot> SnapshotAsync(string owner,CancellationToken ct)=>Task.FromResult(new RegistrationSnapshot([new("trial",source)],[]));
+}
+sealed class FixedDestinationReader(IReadOnlyList<RegisteredDestination> values):IDestinationReader {
+ public Task<IReadOnlyList<RegisteredDestination>> SnapshotAsync(string tenantId,CancellationToken ct)=>Task.FromResult(values);
+}
+sealed class MemoryWebhookOutbox:IOutbox {
+ public PendingDelivery? Pending;public bool Completed,Retried;private bool accepted;
+ public Task<bool> AcceptAsync(string source,string id,string hash,IReadOnlyList<PendingDelivery> deliveries,CancellationToken ct){if(accepted)return Task.FromResult(false);accepted=true;Pending=deliveries.SingleOrDefault();return Task.FromResult(true);}
+ public Task<ClaimedDelivery?> ClaimAsync(TimeSpan lease,CancellationToken ct)=>Task.FromResult(Pending is null?null:new ClaimedDelivery(Pending.Id,Pending.SubscriptionId,Pending.Body,Guid.NewGuid(),1));
+ public Task<bool> CompleteAsync(string id,Guid lease,CancellationToken ct){Completed=true;return Task.FromResult(true);}
+ public Task<bool> RetryAsync(string id,Guid lease,TimeSpan delay,int max,CancellationToken ct){Retried=true;return Task.FromResult(true);}
+}
+sealed class FixedProtectedResolver:IDestinationResolver {
+ public string? LastTenant;
+ public Task<ProtectedDestination?> ResolveAsync(string tenantId,string id,CancellationToken ct){LastTenant=tenantId;return Task.FromResult<ProtectedDestination?>(new(id,new Uri("https://sink.example.invalid/hook"),"synthetic-key-ref"));}
+}
+sealed class SyntheticSecrets:IDeliverySecretResolver {
+ public byte[]? Buffer;
+ public Task<byte[]> ResolveAsync(string reference,CancellationToken ct){Buffer=Enumerable.Repeat((byte)9,32).ToArray();return Task.FromResult(Buffer);}
+}
+sealed class SyntheticWebhookTransport:IWebhookTransport {
+ public bool Success=true;public int Calls;
+ public Task<bool> SendAsync(Uri endpoint,string id,byte[] payload,byte[] key,CancellationToken ct){Calls++;return Task.FromResult(Success);}
 }

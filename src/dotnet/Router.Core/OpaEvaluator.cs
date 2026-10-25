@@ -19,7 +19,7 @@ public sealed class OpaEvaluator(string executable, string capabilities)
     {
         if (!Path.IsPathFullyQualified(executable) || !Path.IsPathFullyQualified(capabilities))
             throw new InvalidOperationException("OPA_PATH_INVALID");
-        if (Encoding.UTF8.GetByteCount(source) is 0 or > 32768 || Encoding.UTF8.GetByteCount(inputJson) > 65536)
+        if (Encoding.UTF8.GetByteCount(source) is 0 or > 32768 || Encoding.UTF8.GetByteCount(inputJson) > (idField=="destination_id"?262144:65536))
             throw new InvalidOperationException("POLICY_INPUT_LIMIT");
         using var input = JsonDocument.Parse(inputJson);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -44,7 +44,7 @@ public sealed class OpaEvaluator(string executable, string capabilities)
                 "--capabilities", capabilities, "--data", policy, "data.router.routes" }) start.ArgumentList.Add(arg);
             using var process = Process.Start(start) ?? throw new InvalidOperationException("OPA_START_FAILED");
             using var kill = deadline.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { } });
-            Task<string> stdout = ReadBounded(process.StandardOutput, 32768, deadline);
+            Task<string> stdout = ReadBounded(process.StandardOutput, idField=="destination_id"?1100000:32768, deadline);
             Task<string> stderr = ReadBounded(process.StandardError, 4096, deadline);
             try
             {
@@ -70,7 +70,7 @@ public sealed class OpaEvaluator(string executable, string capabilities)
                     string id = value.GetProperty(idField).GetString() ?? "";
                     if (!registeredIds.Contains(id) || !seen.Add(id)) throw new InvalidOperationException("SUBSCRIPTION_NOT_ELIGIBLE");
                     var payload = value.GetProperty("payload");
-                    if (Encoding.UTF8.GetByteCount(payload.GetRawText()) > 8192) throw new InvalidOperationException("PAYLOAD_LIMIT");
+                    if (Encoding.UTF8.GetByteCount(payload.GetRawText()) > (idField=="destination_id"?65536:8192)) throw new InvalidOperationException("PAYLOAD_LIMIT");
                     routes.Add(new Route(id, payload.Clone()));
                 }
                 return routes;

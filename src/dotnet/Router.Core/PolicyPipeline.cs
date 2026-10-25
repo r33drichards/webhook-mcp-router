@@ -54,7 +54,7 @@ public sealed class PolicyPipeline {
                     var ids=new HashSet<string>(StringComparer.Ordinal);var safe=new List<DestinationRoute>();
                     foreach(var route in routes) {
                         if(!destinations.Contains(route.DestinationId)||!ids.Add(route.DestinationId))return new(false,"DESTINATION_DENIED",[]);
-                        safe.Add(new(route.DestinationId,Copy(route.Payload,8192)));
+                        safe.Add(new(route.DestinationId,Copy(route.Payload,65536)));
                     }
                     return new(true,"PREVIEW_ONLY",safe);
                 }

@@ -43,6 +43,17 @@ try {
  Check(metadata.Count==1&&metadata[0].Name=="A"&&metadata[0].Tags!.SequenceEqual(new[]{"review"}),"SQL destination metadata tenant scope and disabled filtering");
  await Deny(()=>destinationReader.SnapshotAsync("tenant-b",ct),"cross tenant destination metadata denied");
  await Deny(()=>new SqlDestinationReader(connection,new TenantContext("tenant-a","limited",[])).SnapshotAsync("tenant-a",ct),"destination metadata permission required");
+ await Execute(connection,"INSERT delivery.DestinationConfig(Owner,Id,Endpoint,SigningKeyReference) VALUES('tenant-a','dest-shared','https://sink-a.example.invalid/hook','env:FIXTURE_A'),('tenant-b','dest-shared','https://sink-b.example.invalid/hook','env:FIXTURE_B')");
+ var protectedResolver=new SqlDestinationResolver(connection,new TenantContext("tenant-a","delivery-a",["destinations:deliver"]));
+ Check((await protectedResolver.ResolveAsync("tenant-a","dest-shared",ct))!.Endpoint.Host=="sink-a.example.invalid","SQL private endpoint scoped to tenant");
+ await Deny(()=>protectedResolver.ResolveAsync("tenant-b","dest-shared",ct),"cross tenant private endpoint denied");
+ try {await Execute(connection,"UPDATE delivery.DestinationConfig SET Endpoint='https://changed.example.invalid' WHERE Owner='tenant-a'");throw new Exception("destination URL changed in place");}
+ catch(SqlException e)when(e.Number==51000){Console.WriteLine("PASS queued destination ID cannot be retargeted by update");}
+ var genericOutbox=new SqlOutbox(connection,a,genericWebhook:true);
+ Check(await genericOutbox.AcceptAsync("generic-source","one",hash,[new("generic-event","dest-shared","{\"synthetic\":true}")],ct),"SQL generic payload queued separately");
+ var genericClaim=await genericOutbox.ClaimAsync(TimeSpan.FromSeconds(30),ct);
+ Check(genericClaim is not null&&genericClaim.SubscriptionId=="dest-shared"&&genericClaim.Body=="{\"synthetic\":true}","SQL generic outbox maps destination and raw payload");
+ Check(await genericOutbox.CompleteAsync(genericClaim!.Id,genericClaim.Lease,ct),"SQL generic lease completion");
  var capture=new RequestCapture();var sample=capture.Capture("POST","accepted",Encoding.UTF8.GetBytes("{\"token\":\"secret\",\"message\":\"private\",\"number\":3}"),true,"issues");
  Check(sample.Redacted&&!sample.Payload!.Contains("secret")&&!sample.Payload.Contains("private"),"payload credentials and free text redacted");
  Check(capture.Capture("POST","failed",Encoding.UTF8.GetBytes("\"secret\""),true).Payload=="\"[REDACTED]\"","root string redaction");

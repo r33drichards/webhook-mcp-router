@@ -4,7 +4,8 @@ namespace Router.Core;
 
 // Construct only after resolving a configured ingress source to a trusted tenant.
 // Unknown sources must not instantiate this pipeline or write a tenant log.
-public sealed class LoggedIngress(Ingestion ingestion,IRequestLog log,RequestCapture capture,byte[] sourceKey) {
+public interface IIngressProcessor { Task<bool> AcceptAsync(string deliveryId,string eventType,byte[] body,string signature,CancellationToken ct=default); }
+public sealed class LoggedIngress(IIngressProcessor ingestion,IRequestLog log,RequestCapture capture,byte[] sourceKey) {
     public async Task<bool> AcceptAsync(string deliveryId,string eventType,byte[] body,string signature,CancellationToken ct=default) {
         string expected="sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(sourceKey,body));
         bool verified=sourceKey.Length>=24 && CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(expected),Encoding.ASCII.GetBytes(signature));

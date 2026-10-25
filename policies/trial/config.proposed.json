@@ -28,7 +28,7 @@
   "activation_blockers": [
     "tenant/source configuration",
     "approved generic destination URLs",
-    "generic destination persistence/dispatcher integration",
+    "dispatcher scheduling/secret wiring and HTTPS transport tests",
     "hosted tests and approved network/credential setup"
   ],
   "destination_selection": {
@@ -43,5 +43,11 @@
       "auth",
       "credentials"
     ]
+  },
+  "runtime_shape": {
+    "GenericRouting": true,
+    "GitHubRepositoryId": 961207108,
+    "SourceId": "mcp-js-github",
+    "GitHubPullRequest": null
   }
 }

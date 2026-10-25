@@ -58,22 +58,23 @@ public sealed class SqlRegistrationWriter(string connection,TenantContext tenant
 }
 
 // Separate delivery authority: never writes registry tables.
-public sealed class SqlOutbox(string connection,TenantContext tenant) : IOutbox {
+public sealed class SqlOutbox(string connection,TenantContext tenant,bool genericWebhook=false) : IOutbox {
+    private string Sql(string text)=>genericWebhook?text.Replace("delivery.Outbox","delivery.WebhookOutbox",StringComparison.Ordinal).Replace("SubscriptionId","DestinationId",StringComparison.Ordinal):text;
     public async Task<bool> AcceptAsync(string source,string deliveryId,string bodyHash,IReadOnlyList<PendingDelivery> deliveries,CancellationToken ct) {
-        if(source.Length is 0 or >64 || deliveryId.Length is 0 or >128 || bodyHash.Length!=64 || deliveries.Count>256 || deliveries.Any(d=>d.Body.Length>32768))throw new ArgumentException("DELIVERY_LIMIT");
+        if(source.Length is 0 or >64 || deliveryId.Length is 0 or >128 || bodyHash.Length!=64 || deliveries.Count>256 || deliveries.Any(d=>d.Body.Length>(genericWebhook?65536:32768)))throw new ArgumentException("DELIVERY_LIMIT");
         await using var db=new SqlConnection(connection);await db.OpenAsync(ct);
         await using var tx=(SqlTransaction)await db.BeginTransactionAsync(IsolationLevel.Serializable,ct);
-        await using var check=new SqlCommand("SELECT BodyHash FROM delivery.Receipts WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@tenant AND Source=@source AND DeliveryId=@id",db,tx);
+        await using var check=new SqlCommand(Sql("SELECT BodyHash FROM delivery.Receipts WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@tenant AND Source=@source AND DeliveryId=@id"),db,tx);
         check.Parameters.AddWithValue("@tenant",tenant.TenantId);check.Parameters.AddWithValue("@source",source);check.Parameters.AddWithValue("@id",deliveryId);
         var previous=await check.ExecuteScalarAsync(ct);
         if(previous is string hash) {
             if(hash!=bodyHash)throw new InvalidOperationException("DELIVERY_ID_CONFLICT");
             await tx.CommitAsync(ct);return false;
         }
-        await using var receipt=new SqlCommand("INSERT delivery.Receipts(TenantId,Source,DeliveryId,BodyHash) VALUES(@tenant,@source,@id,@hash)",db,tx);
+        await using var receipt=new SqlCommand(Sql("INSERT delivery.Receipts(TenantId,Source,DeliveryId,BodyHash) VALUES(@tenant,@source,@id,@hash)"),db,tx);
         receipt.Parameters.AddWithValue("@tenant",tenant.TenantId);receipt.Parameters.AddWithValue("@source",source);receipt.Parameters.AddWithValue("@id",deliveryId);receipt.Parameters.AddWithValue("@hash",bodyHash);await receipt.ExecuteNonQueryAsync(ct);
         foreach(var item in deliveries) {
-            await using var insert=new SqlCommand("INSERT delivery.Outbox(TenantId,Id,SubscriptionId,Body) VALUES(@tenant,@id,@sub,@body)",db,tx);
+            await using var insert=new SqlCommand(Sql("INSERT delivery.Outbox(TenantId,Id,SubscriptionId,Body) VALUES(@tenant,@id,@sub,@body)"),db,tx);
             insert.Parameters.AddWithValue("@tenant",tenant.TenantId);insert.Parameters.AddWithValue("@id",item.Id);insert.Parameters.AddWithValue("@sub",item.SubscriptionId);insert.Parameters.AddWithValue("@body",item.Body);await insert.ExecuteNonQueryAsync(ct);
         }
         await tx.CommitAsync(ct);return true;
@@ -81,7 +82,7 @@ public sealed class SqlOutbox(string connection,TenantContext tenant) : IOutbox 
     public async Task<ClaimedDelivery?> ClaimAsync(TimeSpan leaseTime,CancellationToken ct) {
         int seconds=(int)leaseTime.TotalSeconds;if(seconds is <1 or >300)throw new ArgumentException("LEASE_LIMIT");
         await using var db=new SqlConnection(connection);await db.OpenAsync(ct);
-        await using var cmd=new SqlCommand("SET TRANSACTION ISOLATION LEVEL READ COMMITTED; UPDATE TOP(1) delivery.Outbox WITH(UPDLOCK,READPAST,READCOMMITTEDLOCK) SET Lease=@lease,LeaseUntil=DATEADD(second,@seconds,SYSUTCDATETIME()),Attempts=Attempts+1 OUTPUT inserted.Id,inserted.SubscriptionId,inserted.Body,inserted.Lease,inserted.Attempts WHERE TenantId=@tenant AND Status='pending' AND Available<=SYSUTCDATETIME() AND (LeaseUntil IS NULL OR LeaseUntil<=SYSUTCDATETIME())",db);
+        await using var cmd=new SqlCommand(Sql("SET TRANSACTION ISOLATION LEVEL READ COMMITTED; UPDATE TOP(1) delivery.Outbox WITH(UPDLOCK,READPAST,READCOMMITTEDLOCK) SET Lease=@lease,LeaseUntil=DATEADD(second,@seconds,SYSUTCDATETIME()),Attempts=Attempts+1 OUTPUT inserted.Id,inserted.SubscriptionId,inserted.Body,inserted.Lease,inserted.Attempts WHERE TenantId=@tenant AND Status='pending' AND Available<=SYSUTCDATETIME() AND (LeaseUntil IS NULL OR LeaseUntil<=SYSUTCDATETIME())"),db);
         cmd.Parameters.AddWithValue("@tenant",tenant.TenantId);cmd.Parameters.AddWithValue("@lease",Guid.NewGuid());cmd.Parameters.AddWithValue("@seconds",seconds);
         await using var r=await cmd.ExecuteReaderAsync(ct);return await r.ReadAsync(ct)?new(r.GetString(0),r.GetString(1),r.GetString(2),r.GetGuid(3),r.GetInt32(4)):null;
     }
@@ -91,6 +92,6 @@ public sealed class SqlOutbox(string connection,TenantContext tenant) : IOutbox 
         if(delay is <0 or >86400 || (!complete && max is <1 or >20))throw new ArgumentException("RETRY_LIMIT");
         await using var db=new SqlConnection(connection);await db.OpenAsync(ct);
         string sql=complete?"UPDATE delivery.Outbox SET Status='done',Lease=NULL,LeaseUntil=NULL WHERE TenantId=@tenant AND Id=@id AND Lease=@lease AND LeaseUntil>SYSUTCDATETIME() AND Status='pending'":"UPDATE delivery.Outbox SET Status=CASE WHEN Attempts>=@max THEN 'dead' ELSE 'pending' END,Available=DATEADD(second,@delay,SYSUTCDATETIME()),Lease=NULL,LeaseUntil=NULL WHERE TenantId=@tenant AND Id=@id AND Lease=@lease AND LeaseUntil>SYSUTCDATETIME() AND Status='pending'";
-        await using var cmd=new SqlCommand(sql,db);cmd.Parameters.AddWithValue("@tenant",tenant.TenantId);cmd.Parameters.AddWithValue("@id",id);cmd.Parameters.AddWithValue("@lease",lease);cmd.Parameters.AddWithValue("@max",max);cmd.Parameters.AddWithValue("@delay",delay);return await cmd.ExecuteNonQueryAsync(ct)==1;
+        await using var cmd=new SqlCommand(Sql(sql),db);cmd.Parameters.AddWithValue("@tenant",tenant.TenantId);cmd.Parameters.AddWithValue("@id",id);cmd.Parameters.AddWithValue("@lease",lease);cmd.Parameters.AddWithValue("@max",max);cmd.Parameters.AddWithValue("@delay",delay);return await cmd.ExecuteNonQueryAsync(ct)==1;
     }
 }

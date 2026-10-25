@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Security.Cryptography;
 namespace Router.Core;
 
-public sealed class Ingestion(IRegistrationReader registrations,IOutbox outbox,OpaEvaluator evaluator,TenantContext tenant,byte[] ingressKey,GitHubPullRequestScope? pullRequestScope=null,string sourceId="github",long? repositoryId=null) {
+public sealed class Ingestion(IRegistrationReader registrations,IOutbox outbox,OpaEvaluator evaluator,TenantContext tenant,byte[] ingressKey,GitHubPullRequestScope? pullRequestScope=null,string sourceId="github",long? repositoryId=null):IIngressProcessor {
     public async Task<bool> AcceptAsync(string deliveryId,string eventType,byte[] rawBody,string signature,CancellationToken ct=default) {
         if(rawBody.Length>65536 || deliveryId.Length is 0 or >128 || eventType.Length is 0 or >64)throw new InvalidOperationException("INGRESS_LIMIT");
         string expected="sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(ingressKey,rawBody));
