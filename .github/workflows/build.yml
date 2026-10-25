@@ -58,5 +58,13 @@ jobs:
           go mod verify
           go test -mod=mod ./...
           GOOS=wasip1 GOARCH=wasm go build -mod=mod -trimpath -o /tmp/combined-probe.wasm .
+      - name: Build embedded Go OPA evaluator guest
+        working-directory: spike/router
+        run: |
+          go mod tidy
+          go mod verify
+          GOOS=wasip1 GOARCH=wasm go build -trimpath -o /tmp/opa-go.wasm .
+      - name: Assert embedded Go OPA inside Wasmer
+        run: python3 ci/opa-check.py /tmp/opa-go.wasm
       # Discovery lane: tidy may expose missing module sums. Review/commit them
       # before release; deployment requires readonly modules and Nix vendorHash.
