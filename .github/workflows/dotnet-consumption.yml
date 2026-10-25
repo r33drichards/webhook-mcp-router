@@ -1,0 +1,42 @@
+name: CSharp Consumption readiness
+on:
+  push:
+    paths:
+      - 'src/dotnet/**'
+      - 'tests/dotnet/**'
+      - 'policies/capabilities.json'
+      - '.github/workflows/dotnet-consumption.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.402'
+      - name: Fetch official pinned OPA and verify digest
+        shell: pwsh
+        run: |
+          $opaPath = Join-Path $env:RUNNER_TEMP 'opa.exe'
+          Invoke-WebRequest 'https://github.com/open-policy-agent/opa/releases/download/v1.9.0/opa_windows_amd64.exe' -OutFile $opaPath
+          if ((Get-FileHash $opaPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'ea07eb413f7d0b258dc2e45d054ebb7df6fad42ad436bbe96e5dc6d5e7bc2951') { throw 'OPA digest mismatch' }
+          & $opaPath version
+          if ($LASTEXITCODE -ne 0) { throw 'OPA version failed' }
+      - name: Test real OPA process and usage thresholds
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.Checks --configuration Release -- (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }
+      - name: Build isolated Functions MCP project
+        shell: pwsh
+        run: |
+          dotnet build src/dotnet/Router.Functions --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Functions build failed' }
+# No Azure login, credentials, billing change, provisioning or deployment.
+

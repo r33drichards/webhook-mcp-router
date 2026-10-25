@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "functionTimeout": "00:01:00",
+  "extensions": {
+    "mcp": {
+      "serverName": "webhook-mcp-router",
+      "serverVersion": "0.0.1",
+      "system": { "webhookAuthorizationLevel": "System" }
+    }
+  }
+}

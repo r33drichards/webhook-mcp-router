@@ -1,0 +1,63 @@
+{
+  "status": "proposed-not-provisioned",
+  "plan": "Windows Consumption Y1",
+  "aggregation": "sum subscription-wide eligible classic Consumption apps, calendar month-to-date UTC",
+  "metrics": {
+    "FunctionExecutionCount": {
+      "freeGrant": 1000000,
+      "thresholds": {
+        "80": 800000,
+        "90": 900000,
+        "100": 1000000
+      }
+    },
+    "FunctionExecutionUnits": {
+      "unit": "MB-ms",
+      "divideByForGbSeconds": 1024000,
+      "freeGrantGbSeconds": 400000,
+      "thresholds": {
+        "80": 327680000000,
+        "90": 368640000000,
+        "100": 409600000000
+      }
+    }
+  },
+  "sql": {
+    "freeLimitExhaustionBehavior": "AutoPause",
+    "freeComputeVCoreSeconds": 100000,
+    "remainingComputeThresholds": [
+      20000,
+      10000,
+      0
+    ]
+  },
+  "billing": {
+    "monthlyCap": null,
+    "alertsPercent": [
+      80,
+      90,
+      100
+    ],
+    "include": [
+      "Functions overage",
+      "Storage",
+      "Queue operations",
+      "Network egress",
+      "Azure Monitor and Application Insights"
+    ],
+    "hardCap": false
+  },
+  "collector": {
+    "cadence": "hourly initially; shorten only if burst risk warrants added cost",
+    "source": "Azure Monitor metrics API, not sampled request logs",
+    "emptyOrMissingMetric": "unknown; notify monitoring failure, never assume zero",
+    "notification": "recipient/action group unresolved; do not create or send",
+    "dedup": "persist threshold crossings keyed by subscription/month/metric/threshold"
+  },
+  "notes": [
+    "Alerts do not stop usage or billing.",
+    "Do not use a rolling 24-hour metric alert as a monthly free-tier alarm.",
+    "Free grant is shared across eligible apps in subscription; app-only accounting can undercount.",
+    "Cost data and notifications can lag. SQL AutoPause does not cap Functions/storage/network costs."
+  ]
+}
