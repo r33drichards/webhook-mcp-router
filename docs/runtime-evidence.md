@@ -1,3 +1,21 @@
+## Current: hosted testing blocked at WCGI runner boundary
+
+Corrected envelope run40172909795 completed failure07:30:22UTC: local guest regressions passed, hosted GET/POST returned500. Browser logs show missing request CGI metadata and literal CGI stdout captured as logs. Published baseline package metadata correctly selects WCGI; effective Edge runner/startup behavior remains unverified. Temporary debug:true GET07:38:04 remained generic500; exact original YAML restored and verified. No service credentials added. No hosted MCP or delivery success claimed.
+
+See [support-ready reproduction](wcgi-runner-support-report.md) and [detailed diagnosis](cgi-metadata-diagnosis.md). Remaining decisive read-only evidence is effective Edge runner/gateway trace, unavailable from exposed package/config metadata. No further speculative deployments or support contact. Earlier entries below are chronological evidence and may describe superseded blockers.
+
+## Published WCGI confirmed; first envelope probe inconclusive
+
+Read-only audit runs40171992234/40172167597 verified the active official package has entrypoint server, correct WCGI runner/dialect, no corruption or generation errors, and WEBCv3 hash b847c8c8122705a92413c49aacb80ca92fcae7a13976f6f563fcb11dbefc14bf. API exposes only canonical URL, no unique version URL. CI run40171789642 exactly reproduced the Rust panic by omitting REQUEST_METHOD (exit45); normal requests passed.
+
+Hosted envelope run40172471704 returned HTTP500 for three GETs and three POSTs. The probe read until EOF before logging metadata, so absent CONTENT_LENGTH could block its diagnostic. Commit8a2d67d corrects this: log presence flags before reading and only read declared bounded length. CI run40172781018 passed, including an open-stdin/missing-metadata regression. No application root-cause correction or hosted success is claimed. No service credentials were created. Next targeted action is the corrected credential-free envelope workflow; runtime logs can then expose CGI_ENVELOPE_START/PROBE booleans even if HTTPfails.
+
+## Fresh runtime logs identify missing REQUEST_METHOD
+
+At 07:02 UTC browser inspection correlated the current hosted GET with a cgi0.6.0 panic at src/lib.rs:259:30, also present for the06:41:31 retry. Upstream v0.6.0 line259 indexes env_vars["REQUEST_METHOD"], establishing that this key is missing in the official baseline's CGI environment. Go1.25.5 CGI rejects the same missing key, a plausible but not yet directly logged explanation for earlier Go failures. Local harnesses manually supplied it, so prior local passes did not establish hosted metadata delivery.
+
+Artifact/manifest audit and next discriminating checks are saved in local docs/cgi-metadata-diagnosis.md. Browser confirms active deployment ro_eGIvt5oIJJxB uses the expected official package version with no mounts. The immediate panic cause is now identified; why Edge invokes this module without CGI request metadata remains unresolved. Do not hard-code GET or purge snapshots without evidence. A local negative-regression script was prepared to reproduce the exact panic; Python syntax passed, but that new regression has not run under CI. Remote main remains47af1ac; attempted publication did not advance the branch because a tool response did not supply the expected tree SHA. No deployment, new credentials or access changes occurred.
+
 ## Official baseline also fails: stop deployment retries
 
 Official WCGI run40166166069 failed at 05:38:25 UTC with eight hosted HTTP500 GET responses. Its pinned upstream Rust source, locked build and local Wasmer synthetic greetings passed; the 193.4 KiB module has only six preview1 imports. Stock-Go constant run40165762867 had also failed with eight HTTP500 responses. The official baseline removed custom mappings/volume mounts without deleting remote volumes. No service credentials were created; their absence was checked before and after deployment.
