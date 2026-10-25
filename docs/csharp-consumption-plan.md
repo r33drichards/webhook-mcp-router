@@ -1,5 +1,7 @@
 # C# isolated Functions on Windows Consumption
 
+Authentication update: Keycloak on a selected existing NixOS host, pre-registered client credentials and trusted client-to-tenant authorization are the current direction. See [Keycloak integration gates](keycloak-client-credentials.md). No issuer has been deployed or configured; the current MCP system-key protection is unchanged. The earlier OAuth decision-pending wording below is superseded by this design choice, not by an implemented authentication boundary.
+
 Current user decision: C#, classic Consumption, alerts approaching the free allowance. Azure SQL remains selected. Billing upgrade, subscription/region, budget and notification recipient are unresolved with the parent. No Azure resources, identities, credentials, roles, firewall rules, billing settings or alerts have been changed.
 
 ## Verified support and pins

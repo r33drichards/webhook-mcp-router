@@ -33,6 +33,18 @@ jobs:
         run: |
           dotnet run --project tests/dotnet/Router.Checks --configuration Release -- (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
           if ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }
+      - name: Test OAuth validation and tenant mapping
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.AuthChecks --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Auth checks failed' }
+      - name: Test SQL tenant boundaries and request logs
+        shell: pwsh
+        run: |
+          sqllocaldb start MSSQLLocalDB
+          if ($LASTEXITCODE -ne 0) { throw 'LocalDB start failed' }
+          dotnet run --project tests/dotnet/Router.Integration --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'SQL checks failed' }
       - name: Build isolated Functions MCP project
         shell: pwsh
         run: |

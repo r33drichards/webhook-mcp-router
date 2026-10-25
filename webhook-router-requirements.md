@@ -1,8 +1,26 @@
 # Webhook router requirements
 
-## Current decision: C# isolated Functions on Windows Consumption
+## Latest authentication direction: Keycloak service clients
 
-Robert selected Azure SQL, C# isolated Azure Functions on classic Windows Consumption, and alerts near monthly free limits. This supersedes the prior Wasmer runtime target and Go-only/in-process receiver requirement. Rego remains evaluated by OPA; the official OPA subprocess boundary is under validation. MCP tools, verified webhook event-subscription semantics, durable SQL/outbox and registration read-only/read-write separation remain required. See [current C# plan](docs/csharp-consumption-plan.md). Billing upgrade, monthly budget, account/region and provisioning remain pending parent resolution. Alerts are not hard spending caps. Historical requirements below describe the preceding phase.
+Use Keycloak on an existing, not-yet-selected NixOS host with pre-registered OAuth client credentials; keep MCP in Azure Functions. Require issuer/audience/signature/lifetime and operation-scope validation plus a trusted client-to-tenant mapping. Dynamic client registration is not required for these controlled clients, but actual client software must acquire and supply tokens. Secure application multi-tenancy remains unimplemented. See [Keycloak design and remaining changes](docs/keycloak-client-credentials.md). No Keycloak deployment, client/secret creation, network/security changes or Azure billing changes are authorized by this design decision.
+
+## Latest decision: C# isolated, Windows Consumption, Azure SQL
+
+Robert selected C# and classic Consumption with alerts near free limits. This supersedes the Go/Flex hosting choice. See [C# plan and evidence](docs/csharp-consumption-plan.md). Rego remains OPA-evaluated; official OPA subprocess is being tested, not a replacement C# interpreter. SQL/outbox and exact webhook event-subscription semantics remain required. Billing upgrade, monthly cap and provisioning are pending parent resolution; alerts are not hard spending caps.
+
+## Latest hosting decision: Azure Functions and Azure SQL
+
+The user selected Azure SQL and authorized Azure Functions deployment including MCP tools. Native Go routing/CLI reuse remains desirable; Azure Functions is now the hosted target. See [Azure deployment checkpoint](docs/azure-functions-plan.md) for verified guides, local adapter status and unresolved supervisor-owned Azure access/region/budget questions. This supersedes NixOS as the immediate hosted deployment target, while retaining it as a possible CLI execution option. No Azure resource has been provisioned.
+
+## Current direction: NixOS-managed webhook and routing CLI
+
+The user has pivoted back to a CLI design invoked by upstream Go webhook through NixOS `services.webhook`. This supersedes the mandatory combined receiver fork, in-process-only execution and Wasmer hosting target below. Native OPA policy evaluation, the verified MCP webhook subscription convention, registration database read-only/read-write separation and Nix reproducibility remain goals.
+
+The current design, proposed process boundaries, verified handoff capabilities and implementation acceptance checks are in [docs/nixos-cli-design.md](docs/nixos-cli-design.md). This update changes design only; no NixOS service has been deployed or tested.
+
+## Historical Wasmer POC requirements and evidence
+
+The following records the preceding phase; conflicting runtime and process-layout requirements are superseded by the current direction above.
 
 Status: active synthetic POC implementation and runtime validation, updated 2026-10-25. Public repository: https://github.com/r33drichards/webhook-mcp-router. Publication and CI are authorized; the earlier ideation-only/no-push restrictions are withdrawn. One minimal free-tier Wasmer hosted E2E is authorized after real readiness checks. The user approved three temporary synthetic POC credentials, subsequently removed from Wasmer; parent-owned GitHub environment cleanup remains pending. Paid resources, production hooks/data and unrelated access changes remain unapproved.
 
