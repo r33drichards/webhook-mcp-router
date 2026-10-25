@@ -1,3 +1,5 @@
+> Superseded in part by [the broader prior-art review](prior-art-networking.md): an existing WASIX Go fork has now passed real TCP and certificate-verified TLS tests under Wasmer. Standard HTTP still times out; do not treat the earlier search as proof that no existing solution exists.
+
 # Hosted E2E blocker after green CI
 
 The selected unmodified Go 1.27.3 `GOOS=wasip1 GOARCH=wasm` build can execute SDK CGI and embedded OPA, but its default outbound `net/http.Transport` cannot establish a real callback connection. [Official Go source](https://github.com/golang/go/blob/go1.27.3/src/net/net_fake.go) selects fake networking for `wasip1`; `fakeConnect` connects within the guest's socket map. The installed `net/fd_fake.go` separately allows operations on inherited accepted sockets; that does not provide arbitrary outbound dialing. Previous actual Wasmer outbound HTTP/TCP probes failed while native controls passed.

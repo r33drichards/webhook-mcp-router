@@ -1,3 +1,23 @@
+## Prior-art correction and actual existing-toolchain tests
+
+The broader parallel source review found a real existing `wasix-org/go` networking fork, plus dispatchrun/net, wasibuilder, wasinet, Bytecode Alliance go-wasi/componentize-go, OpenList TinyGo HTTP and an experimental Go wasip3 route. See [prior-art-networking.md](prior-art-networking.md) for source pins, maintenance dates, exact ABI comparisons and test evidence. Earlier conclusions that no existing path was found were too narrow and are superseded.
+
+Unmodified dispatchrun/net targets preview1 open/connect imports that Wasmer7.5 does not export; Wasmer's WASIX signatures/layout differ, so no doomed TLS test was attempted for it. The existing WASIX Go1.25.5 fork imports the matching ABI and was tested instead in authorized CI, without local denied downloads or custom adapter code.
+
+Actual [run 40159424461](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40159424461): release archive digest verified; TCP, TLS with explicit test CA, unknown-CA rejection, wrong-hostname rejection, and synchronous standard HTTP serialization over TLS all PASS under Wasmer7.5. Host independently received the exact 15-byte nonce. Ordinary http.Client POST FAILS awaiting response headers (exit1); complete body is seen by the sink around timeout. This is partial success, not a full transport or Edge pass. The synchronous diagnostic is not an application adapter. Logs: `docs/runtime-logs/wasix-go-prior-art.log`. No new networking fix exists between inspected fork release and HEAD. DNS/SDK/OPA on this fork and managed Edge remain untested; no deployment occurred.
+
+## Focused official Wasmer outbound review
+
+Completed the requested bounded official-source pass; findings and links are in [outbound-options.md](outbound-options.md). Wasmer documents Go wasip1 as WASI, not WASIX. Its 7.5.0 runtime has socket APIs and custom HTTP-host import examples, but no supported Go guest adapter or managed-Edge arbitrary-import integration was verified. Rust WASIX Reqwest/Axum provide a documented network-capable alternative; those were researched, not executed here. No new implementation, install, deployment or denial retry occurred.
+
+Two explicit user choices: (A) retain one native Go/OPA/SDK service on Linux/container hosting (recommended for the shortest functional POC); (B) use a Rust WASIX Edge ingress plus native Go backend (preserves native Go OPA but creates two services and requires backend hosting). A custom Wasmer embedding host is a research option outside managed Edge, not a verified drop-in solution. No architecture change was made silently; green existing CI remains valid and deployment remains gated.
+
+## Hosted continuation: exact remaining blocker
+
+See [hosted-blocker.md](hosted-blocker.md). Verified official Go 1.27.3 source selects fake networking for wasip1; the current fixture's standard net/http transport cannot perform real outbound callbacks. WCGI supplies inbound CGI streams, not a replacement outbound adapter. The same issue prevents exact subscription verification challenges and remote DB dialing. A compatible host-network adapter is required; no verified integration exists in this project yet. CI forwarding would be a different architecture, not a pass.
+
+Current official Hobby pricing includes 1 GB volumes/package storage; parent verified Free account and dedicated Actions secret. No new credential was retrieved/created. Tiny persistent marker storage may fit, but Edge RWX atomicity/visibility and account remaining allowance need validation. No volume, app or DB was provisioned. Hosted E2E was not attempted; deployment gate remains closed for a concrete runtime limitation, not Nix work or a missing Wasmer token. This is not an automatic approval rejection. The connector also has no workflow-dispatch action; parent can trigger a reviewed manual deployment through its browser once runtime prerequisites are resolved.
+
 ## Verified GitHub CI: SDK CGI and embedded Go OPA under Wasmer
 
 **PASS** on code commit `23fa45d9a39a3e840066355420a86a8a42a787e3`: [run 40158341557](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158341557), both `hosted-sdk` and `build` jobs successful. Go 1.27.3; Wasmer 7.5.0 with archive digest verified; GitHub Ubuntu 24.04 runner. Dependencies resolved through normal verified Go module flow in the authorized CI environment. Local network restrictions were not changed.

@@ -1,3 +1,5 @@
+> Superseded in part by [the broader prior-art review](prior-art-networking.md): an existing WASIX Go fork has now passed real TCP and certificate-verified TLS tests under Wasmer. Standard HTTP still times out; do not treat the earlier search as proof that no existing solution exists.
+
 # Bounded official-source outbound feasibility review
 
 ## Finding

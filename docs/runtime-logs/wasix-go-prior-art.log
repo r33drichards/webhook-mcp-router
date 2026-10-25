@@ -1,0 +1,24 @@
+2026-10-25T03:46:17.9732196Z wasmer 7.5.0
+2026-10-25T03:46:18.1802882Z go version go1.25.5 linux/amd64
+2026-10-25T03:46:26.9112598Z     "wasix_32v1"."getcwd": [I32, I32] -> [I32]
+2026-10-25T03:46:26.9112854Z     "wasix_32v1"."sock_addr_local": [I32, I32] -> [I32]
+2026-10-25T03:46:26.9113120Z     "wasix_32v1"."sock_addr_peer": [I32, I32] -> [I32]
+2026-10-25T03:46:26.9113591Z     "wasix_32v1"."sock_open": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:46:26.9113903Z     "wasix_32v1"."sock_set_opt_flag": [I32, I32, I32] -> [I32]
+2026-10-25T03:46:26.9114203Z     "wasix_32v1"."sock_get_opt_flag": [I32, I32, I32] -> [I32]
+2026-10-25T03:46:26.9114491Z     "wasix_32v1"."sock_set_opt_size": [I32, I32, I64] -> [I32]
+2026-10-25T03:46:26.9114764Z     "wasix_32v1"."sock_get_opt_size": [I32, I32, I32] -> [I32]
+2026-10-25T03:46:26.9115028Z     "wasix_32v1"."sock_bind": [I32, I32] -> [I32]
+2026-10-25T03:46:26.9115270Z     "wasix_32v1"."sock_listen": [I32, I32] -> [I32]
+2026-10-25T03:46:26.9115521Z     "wasix_32v1"."sock_connect": [I32, I32] -> [I32]
+2026-10-25T03:46:29.0924530Z {"stage": "tcp", "exit_code": 0, "stdout": "PASS tcp\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:46:29.2375280Z {"stage": "tls", "exit_code": 0, "stdout": "PASS tls\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:46:29.3793542Z {"stage": "untrusted", "exit_code": 0, "stdout": "PASS untrusted\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:46:29.5251679Z {"stage": "wrong-name", "exit_code": 0, "stdout": "PASS wrong-name\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:46:29.6663820Z {"host_receipt_bytes": 15, "expected_bytes": 15}
+2026-10-25T03:46:29.6730703Z {"stage": "https-sync-diagnostic", "exit_code": 0, "stdout": "PASS https-sync-diagnostic\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:46:59.8572625Z {"host_receipt_bytes": 15, "expected_bytes": 15}
+2026-10-25T03:46:59.8637168Z {"stage": "https", "exit_code": 1, "stdout": "", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\nPost \"https://127.0.0.1:33813/synthetic\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n"}
+2026-10-25T03:46:59.9051120Z     assert result.returncode==0, 'existing toolchain stage failed: '+mode
+2026-10-25T03:46:59.9055874Z AssertionError: existing toolchain stage failed: https
+2026-10-25T03:46:59.9190184Z ##[error]Process completed with exit code 1.
