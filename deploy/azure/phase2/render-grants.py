@@ -3,6 +3,7 @@
 import argparse, uuid
 p=argparse.ArgumentParser()
 for role in ('reader','control','delivery'): p.add_argument('--'+role,required=True,type=uuid.UUID)
+p.add_argument("--generic",action="store_true",help="Include separately reviewed destination/outbox grants after generic schema migration")
 a=p.parse_args()
 print('SET XACT_ABORT ON; BEGIN TRANSACTION;')
 for role,oid in [('reader',a.reader),('control',a.control),('delivery',a.delivery)]:
@@ -18,4 +19,17 @@ for table in ('Subscriptions','Policies'):
 print('GRANT SELECT ON OBJECT::delivery.RequestLog TO [router_control];')
 for table,permissions in [('Receipts','SELECT,INSERT'),('Outbox','SELECT,INSERT,UPDATE'),('RequestLog','SELECT,INSERT,DELETE')]:
  print(f'GRANT {permissions} ON OBJECT::delivery.{table} TO [router_delivery];')
+if a.generic:
+ print('GRANT SELECT ON OBJECT::registry.Destinations TO [router_reader];')
+ print('DENY INSERT,UPDATE,DELETE ON OBJECT::registry.Destinations TO [router_reader];')
+ print('GRANT SELECT,INSERT,UPDATE ON OBJECT::registry.Destinations TO [router_control];')
+ print('DENY DELETE ON OBJECT::registry.Destinations TO [router_control];')
+ print('GRANT INSERT ON OBJECT::delivery.DestinationConfig TO [router_control];')
+ print('DENY SELECT,UPDATE,DELETE ON OBJECT::delivery.DestinationConfig TO [router_control];')
+ print('DENY SELECT,INSERT,UPDATE,DELETE ON OBJECT::delivery.DestinationConfig TO [router_reader];')
+ print('GRANT SELECT ON OBJECT::registry.Destinations TO [router_delivery];')
+ print('DENY INSERT,UPDATE,DELETE ON OBJECT::registry.Destinations TO [router_delivery];')
+ print('GRANT SELECT ON OBJECT::delivery.DestinationConfig TO [router_delivery];')
+ print('DENY INSERT,UPDATE,DELETE ON OBJECT::delivery.DestinationConfig TO [router_delivery];')
+ print('GRANT SELECT,INSERT,UPDATE ON OBJECT::delivery.WebhookOutbox TO [router_delivery];')
 print('COMMIT;')

@@ -6,6 +6,8 @@ Implementation is local/CI code, not live configuration. Azure remains stopped a
 
 Apply `src/dotnet/Router.Storage/schema.sql`, then `destination-schema.sql` through the approved migration operator. Fresh identifier columns use Latin1_General_100_BIN2 so SQL tenant comparisons match ordinal application identity comparisons. These scripts do not alter existing columns: inspect existing schema and dependencies before any migration; do not activate against case-insensitive tenant columns.
 
+Render the additional grant set with `deploy/azure/phase2/render-grants.py --generic --reader <verified-client-id> --control <verified-client-id> --delivery <verified-client-id>`. It only prints SQL; root must review before execution. IDs are managed-identity CLIENT IDs, not object IDs.
+
 Additional object grants for the existing narrowly scoped identities:
 
 - Registry reader: SELECT registry.Destinations; no access to delivery.DestinationConfig.

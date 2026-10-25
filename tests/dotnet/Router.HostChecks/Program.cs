@@ -10,13 +10,14 @@ using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Router.Storage;
+using Router.Core;
 if(args.Length!=4)throw new ArgumentException("func, fixture root, opa, capabilities required");
 var dbName="router_host_"+Guid.NewGuid().ToString("N");var master=@"Server=(localdb)\MSSQLLocalDB;Integrated Security=true;Encrypt=false;Initial Catalog=master";var connection=master.Replace("Initial Catalog=master","Initial Catalog="+dbName);
 async Task Sql(string cs,string sql){await using var c=new SqlConnection(cs);await c.OpenAsync();await using var cmd=new SqlCommand(sql,c);await cmd.ExecuteNonQueryAsync();}
 using var rsa=RSA.Create(2048);var signing=new RsaSecurityKey(rsa){KeyId="ephemeral-host-fixture"};var pub=rsa.ExportParameters(false);
 string jwks=JsonSerializer.Serialize(new{keys=new[]{new{kty="RSA",use="sig",alg="RS256",kid=signing.KeyId,n=Base64UrlEncoder.Encode(pub.Modulus!),e=Base64UrlEncoder.Encode(pub.Exponent!)}}});
 byte[] ingressKey=RandomNumberGenerator.GetBytes(32);
-string Token(string client="a",string aud="router")=>new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor{Issuer="https://synthetic-issuer.example.invalid",Audience=aud,Expires=DateTime.UtcNow.AddMinutes(15),Claims=new Dictionary<string,object>{{"azp",client},{"sub","svc-"+client},{"scope","router:read requests:read subscriptions:write"}},SigningCredentials=new(signing,SecurityAlgorithms.RsaSha256)});
+string Token(string client="a",string aud="router")=>new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor{Issuer="https://synthetic-issuer.example.invalid",Audience=aud,Expires=DateTime.UtcNow.AddMinutes(15),Claims=new Dictionary<string,object>{{"azp",client},{"sub","svc-"+client},{"scope","router:read requests:read subscriptions:write destinations:read destinations:write"}},SigningCredentials=new(signing,SecurityAlgorithms.RsaSha256)});
 using var http=new HttpClient(new SocketsHttpHandler{UseProxy=false,AllowAutoRedirect=false}){BaseAddress=new Uri("http://127.0.0.1:7072"),Timeout=TimeSpan.FromSeconds(20)};
 Process? host=null;Task? stdout=null,stderr=null;var log=new StringBuilder();
 async Task Drain(StreamReader reader){while(await reader.ReadLineAsync() is string line){lock(log){if(log.Length<20000)log.AppendLine(line);}}}
@@ -39,11 +40,12 @@ async Task<(int,JsonNode?)> Rpc(string method,object parameters,string? token) {
 }
 async Task<JsonNode> Tool(string name,object arguments,string token){var(status,rpc)=await Rpc("tools/call",new{name,arguments},token);Check(status==200,"tool HTTP200 "+name);return rpc!["result"]!;}
 JsonNode Data(JsonNode result)=>JsonNode.Parse(result["content"]![0]!["text"]!.GetValue<string>())!["result"]!;
-async Task<int> Ingress(string id,byte[] body,bool valid){using var request=new HttpRequestMessage(HttpMethod.Post,"/api/webhooks/source-a"){Content=new ByteArrayContent(body)};request.Headers.Add("X-GitHub-Delivery",id);request.Headers.Add("X-GitHub-Event","issues");request.Headers.Add("X-Hub-Signature-256","sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(valid?ingressKey:new byte[32],body)));using var response=await http.SendAsync(request);return(int)response.StatusCode;}
+async Task<int> Ingress(string id,byte[] body,bool valid,string source="source-a",string eventType="issues"){using var request=new HttpRequestMessage(HttpMethod.Post,"/api/webhooks/"+source){Content=new ByteArrayContent(body)};request.Headers.Add("X-GitHub-Delivery",id);request.Headers.Add("X-GitHub-Event",eventType);request.Headers.Add("X-Hub-Signature-256","sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(valid?ingressKey:new byte[32],body)));using var response=await http.SendAsync(request);return(int)response.StatusCode;}
 var dispatchQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch",new QueueClientOptions{MessageEncoding=QueueMessageEncoding.Base64});
 bool success=false;
 try {
  await Sql(master,"CREATE DATABASE ["+dbName+"]");await SqlMigration.ApplyAsync(connection);
+ await Sql(connection,File.ReadAllText("src/dotnet/Router.Storage/destination-schema.sql"));
  await Sql(connection,"CREATE TABLE dbo.FixtureWakeup(Received int NOT NULL)");
  await dispatchQueue.CreateIfNotExistsAsync();await dispatchQueue.ClearMessagesAsync();
  await Start();
@@ -56,7 +58,7 @@ try {
  Check(triggered,"actual queue trigger deserializes wakeup and invokes runtime using local Azurite");var a=Token();var b=Token("b");
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");
- Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==3,"exploration catalog");
+ Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==8,"exploration and destination catalog");
  Check((await Rpc("events/list",new{},a)).Item2?["result"]?["events"]?.AsArray().Count==1,"custom event discovery");
  var body=Encoding.UTF8.GetBytes("{\"action\":\"opened\",\"number\":7,\"token\":\"synthetic-sensitive-marker\"}");
  Check(await Ingress("delivery-one",body,true)==200,"signed ingress accepted into SQL");
@@ -70,6 +72,19 @@ try {
  Check(await Ingress("delivery-oversized",new byte[65537],true)==413,"oversized input rejected");
  var final=Data(await Tool("requests_list",new{},a))["Items"]!.AsArray();Check(final.Count==4,"failed requests logged and exploration not captured");
  Check(final.Any(x=>x!["Request"]!["Authenticated"]!.GetValue<bool>()==false&&x["Request"]!["Payload"] is null),"unverified log metadata only");
+ var registered=Data(await Tool("destinations_register",new{binding="fixture",name="Synthetic review",tags=new[]{"review"}},a));
+ string destination=registered["Id"]!.GetValue<string>();Check(!registered["Enabled"]!.GetValue<bool>(),"actual host destination registration disabled");
+ await Tool("destinations_set_enabled",new{id=destination,enabled=true},a);
+ Check(Data(await Tool("destinations_list",new{},b))["Items"]!.AsArray().Count==0,"actual host destination tenant isolation");
+ var policyWriter=new SqlRegistrationWriter(connection,new TenantContext("tenant-a","fixture-operator",["policies:write"]));
+ await policyWriter.SavePolicyAsync("tenant-a",new("trial",File.ReadAllText("policies/trial/mcp-js-review.rego")),default);
+ var genericBody=Encoding.UTF8.GetBytes("{\"repository\":{\"id\":961207108,\"full_name\":\"r33drichards/mcp-js\"},\"action\":\"labeled\",\"label\":{\"name\":\"review\"}}");
+ string delivery=Guid.NewGuid().ToString();
+ Check(await Ingress(delivery,genericBody,true,"source-generic","pull_request")==200,"actual host generic signed GitHub input accepted");
+ Check(await Ingress(delivery,genericBody,true,"source-generic","pull_request")==200,"actual host generic duplicate accepted idempotently");
+ var pending=await new SqlOutbox(connection,new TenantContext("tenant-a","fixture",[]),genericWebhook:true).ClaimAsync(TimeSpan.FromSeconds(30),default);
+ Check(pending is not null&&pending.SubscriptionId==destination,"actual host real OPA selects registered SQL destination into durable outbox");
+ Check(await new SqlOutbox(connection,new TenantContext("tenant-a","fixture",[]),genericWebhook:true).ClaimAsync(TimeSpan.FromSeconds(30),default) is null,"actual host duplicate does not create second generic delivery");
  success=true;Console.WriteLine("LIMIT: actual Functions host with synthetic static signing-key DI and real LocalDB; production HTTPS JWKS retrieval and live Keycloak remain untested. No callback delivery attempted.");
 } finally {
  await Stop();await dispatchQueue.DeleteIfExistsAsync();SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");

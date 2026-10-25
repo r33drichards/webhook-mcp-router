@@ -8,7 +8,7 @@ CREATE TABLE registry.Destinations (
  PRIMARY KEY(Owner,Id), CONSTRAINT DestinationTags_JSON CHECK(ISJSON(Tags)=1)
 );
 -- URL/auth configuration is intentionally not part of this metadata table/API.
--- Protected configuration storage and dispatcher resolution remain separate work.
+-- Protected configuration is stored separately below and resolved only by delivery.
 IF SCHEMA_ID('delivery') IS NULL EXEC('CREATE SCHEMA delivery');
 IF OBJECT_ID('delivery.DestinationConfig') IS NULL
 CREATE TABLE delivery.DestinationConfig (
@@ -28,6 +28,6 @@ CREATE TABLE delivery.WebhookOutbox (
  PRIMARY KEY(TenantId,Id), CONSTRAINT WebhookOutbox_Status CHECK(Status IN ('pending','done','dead'))
 );
 -- App roles: metadata reader SELECT registry.Destinations only;
--- control metadata CRUD as reviewed, protected binding INSERT only (no DELETE/UPDATE);
+-- control metadata SELECT/INSERT/UPDATE, no DELETE, protected binding INSERT only (no DELETE/UPDATE);
 -- delivery SELECT protected binding plus WebhookOutbox DML/receipt authority.
 -- Do not grant these automatically; supervisor reviews the migration/grants.
