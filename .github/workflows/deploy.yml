@@ -3,10 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       confirm_no_spend:
-        description: Account quotas and GitHub minutes reviewed; no paid resources approved
+        description: Verify current free allowance; no paid resources authorized
         type: boolean
         required: true
         default: false
+      dns_server:
+        description: Explicit TCP resolver for the owned test-app hostname only
+        type: string
+        required: true
+        default: '1.1.1.1:53'
 permissions:
   contents: read
 concurrency:
@@ -17,33 +22,43 @@ jobs:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.confirm_no_spend
     environment: wasmer-poc
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Fail closed on unfinished hosted implementation
-        run: python3 ci/deployment-gate.py
-      - name: Install pinned Wasmer
-        run: bash ci/install-wasmer.sh
-      - name: Build reviewed Nix release
-        run: |
-          # Gate requires a reviewed pinned Nix bootstrap/build script.
-          bash ci/build-hosted.sh
-          wasmer validate deploy/server.wasm
-      - name: Deploy one reviewed synthetic application
+      - run: python3 ci/test_edge_lifecycle.py
+      - run: python3 ci/deployment-gate.py
+      - run: bash ci/install-wasix-go.sh
+      - run: bash ci/install-wasmer.sh
+      - name: Test and build exact candidate before any hosted writes
         env:
-          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+          GOTOOLCHAIN: local
         run: |
           set -euo pipefail
-          test -n "$WASMER_TOKEN"
-          wasmer whoami >/dev/null
-          wasmer deploy --dir deploy --non-interactive --publish-package --no-persist-id
-      - name: Assert actual hosted MCP and signed receipt
+          (cd spike/hosted && "$WASIX_GO" test -mod=readonly ./... && GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" test -mod=readonly -c -o "$RUNNER_TEMP/hosted-tests.wasm" .)
+          bash ci/build-hosted.sh
+          wasmer validate deploy/server.wasm
+          python3 ci/wasix-service-check.py deploy/server.wasm "$RUNNER_TEMP/hosted-tests.wasm"
+      - name: Deploy isolated app and approved temporary secrets
         env:
-          POC_MCP_URL: ${{ vars.POC_MCP_URL }}
-          POC_RECEIPTS_URL: ${{ vars.POC_RECEIPTS_URL }}
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
           POC_TEST_TOKEN: ${{ secrets.POC_TEST_TOKEN }}
           POC_RECEIPT_TOKEN: ${{ secrets.POC_RECEIPT_TOKEN }}
+          POC_WEBHOOK_SECRET: ${{ secrets.POC_WEBHOOK_SECRET }}
+          POC_DNS_SERVER: ${{ inputs.dns_server }}
+        run: python3 ci/edge-lifecycle.py deploy
+      - name: Assert actual hosted event lifecycle and signed receipt
+        env:
+          POC_TEST_TOKEN: ${{ secrets.POC_TEST_TOKEN }}
+          POC_RECEIPT_TOKEN: ${{ secrets.POC_RECEIPT_TOKEN }}
+          POC_WEBHOOK_SECRET: ${{ secrets.POC_WEBHOOK_SECRET }}
         run: python3 ci/hosted-e2e.py
-      # Do not upload app env, credentials, raw receipts, or deployment output.
+      - name: Remove and verify temporary Wasmer secrets even after failures
+        if: always()
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+          POC_TEST_TOKEN: ${{ secrets.POC_TEST_TOKEN }}
+        run: python3 ci/edge-lifecycle.py cleanup
+      # Browser coordinator removes/verifies the three GitHub environment secrets.
+      # No secret-bearing environment, CLI response, or artifact is uploaded.

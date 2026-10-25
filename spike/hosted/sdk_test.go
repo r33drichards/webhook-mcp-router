@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -179,5 +181,40 @@ func TestEventVerificationAndTTLFailClosed(t *testing.T) {
 	}
 	if _, err := loadEventSubscription(f, id, eventOwner(f.token)); err == nil {
 		t.Fatal("expired grant accepted")
+	}
+}
+
+func TestEventGrantStoresFingerprintNotSecret(t *testing.T) {
+	f := testFixture(t)
+	f.callback = "https://controlled.invalid/callback"
+	id := "sub_" + strings.Repeat("b", 64)
+	grant := &eventSubscription{ID: id, Owner: eventOwner(f.token), URL: f.callback, Key: f.key, Expires: time.Now().Add(time.Minute)}
+	if err := saveEventSubscription(f, grant); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(f.state, id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(raw, f.key) || bytes.Contains(raw, []byte(base64.StdEncoding.EncodeToString(f.key))) || bytes.Contains(raw, []byte("whsec_")) {
+		t.Fatal("secret persisted")
+	}
+	var record map[string]any
+	if json.Unmarshal(raw, &record) != nil {
+		t.Fatal("invalid persisted record")
+	}
+	if _, ok := record["key"]; ok {
+		t.Fatal("key field persisted")
+	}
+	if record["key_fingerprint"] != eventKeyFingerprint(f.key) {
+		t.Fatal("fingerprint absent")
+	}
+	restored, err := loadEventSubscription(f, id, eventOwner(f.token))
+	if err != nil || !bytes.Equal(restored.Key, f.key) {
+		t.Fatal("configured key not restored")
+	}
+	f.key = bytes.Repeat([]byte{4}, 32)
+	if _, err := loadEventSubscription(f, id, eventOwner(f.token)); err == nil {
+		t.Fatal("changed configured key accepted old grant")
 	}
 }

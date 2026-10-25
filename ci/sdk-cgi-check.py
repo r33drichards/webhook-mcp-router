@@ -27,7 +27,10 @@ with tempfile.TemporaryDirectory() as tmp:
                '--mapdir', '/receipts:' + str(root / 'receipts')]
         for key, value in dict(common, CONTENT_LENGTH=str(len(body))).items():
             cmd += ['--env', key + '=' + value]
-        p = subprocess.run(cmd, input=body, text=True, capture_output=True, timeout=60)
+        try:
+            p = subprocess.run(cmd, input=body, text=True, capture_output=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("CGI guest timed out; request environment withheld") from None
         if p.returncode:
             raise RuntimeError('SDK CGI guest failed: ' + method)
         headers, payload = p.stdout.split('\n\n', 1)

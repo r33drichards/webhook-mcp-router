@@ -37,7 +37,10 @@ with tempfile.TemporaryDirectory() as tmp:
             for name in ['state','receipts']:cmd+=['--mapdir','/'+name+':'+str(root/name)]
             cmd+=['--mapdir','/fixtures:'+str(root)]
             for name,value in env.items():cmd+=['--env',name+'='+value]
-            result=subprocess.run(cmd,input=body,text=True,capture_output=True,timeout=60)
+            try:
+                result=subprocess.run(cmd,input=body,text=True,capture_output=True,timeout=60)
+            except subprocess.TimeoutExpired:
+                raise RuntimeError("CGI guest timed out; request environment withheld") from None
             assert result.returncode==0,'CGI guest failed before response'
             head,payload=result.stdout.split('\n\n',1)
             assert 'mcp-session-id:' not in head.lower()

@@ -1,10 +1,17 @@
 {
-  "ready": false,
-  "blockers": [
-    "Hosted WCGI HTTP mapping has not been tested (manual CGI guest tests passed)",
-    "Edge durable storage and guest outbound callback transport are not proven",
-    "Exact events extension discovery/challenge/lifecycle remains incomplete",
-    "Reviewed deploy/app.yaml, deploy/wasmer.toml and ci/build-hosted.sh do not yet exist",
-    "Pinned Nix installer/toolchain and real vendorHash still required"
+  "ready": true,
+  "scope": "one manually approved synthetic hosted test, not production readiness",
+  "local_runtime_pass": "https://github.com/r33drichards/webhook-mcp-router/actions/runs/40160858958",
+  "candidate_retested_before_writes": true,
+  "hosted_verified": false,
+  "temporary_service_secrets_approved": true,
+  "cleanup_required": [
+    "Wasmer three exact secret names and live rejection",
+    "GitHub wasmer-poc three exact secret names via browser owner"
+  ],
+  "limitations": [
+    "Nix expressions untested; verified upstream compiler binary and readonly Go modules used",
+    "File fixture is not shared database RO/RW enforcement",
+    "Hosted DNS/persistence/WCGI behavior to be established by this test"
   ]
 }

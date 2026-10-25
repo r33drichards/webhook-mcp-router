@@ -53,6 +53,12 @@ type envelope struct {
 }
 
 func loadFixture() (*fixture, error) {
+	if raw := os.Getenv("POC_EXPIRES_AT"); raw != "" {
+		expiry, err := time.Parse(time.RFC3339, raw)
+		if err != nil || !time.Now().Before(expiry) {
+			return nil, errors.New("synthetic test window expired")
+		}
+	}
 	f := &fixture{state: os.Getenv("POC_STATE_DIR"), receipts: os.Getenv("POC_RECEIPT_DIR"), token: os.Getenv("POC_TEST_TOKEN"), receiptToken: os.Getenv("POC_RECEIPT_TOKEN"), callback: os.Getenv("POC_CALLBACK_URL")}
 	key, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(os.Getenv("POC_WEBHOOK_SECRET"), "whsec_"))
 	u, uerr := url.Parse(f.callback)
@@ -61,7 +67,7 @@ func loadFixture() (*fixture, error) {
 	}
 	f.key = key
 	// Destination is a trusted operator-configured fixed sink, never RPC input.
-	// No ambient proxies or redirects. Outbound WASI support remains unproven.
+	// No ambient proxies or redirects; verified WASIX nonblocking transport.
 	f.client, err = newHTTPClient()
 	if err != nil {
 		return nil, err

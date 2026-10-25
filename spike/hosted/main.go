@@ -145,11 +145,12 @@ type eventSubscribeResult struct {
 }
 type eventEmptyResult struct{ mcp.ResultBase }
 type eventSubscription struct {
-	ID      string    `json:"id"`
-	Owner   string    `json:"owner"`
-	URL     string    `json:"url"`
-	Key     []byte    `json:"key"`
-	Expires time.Time `json:"expires"`
+	ID             string    `json:"id"`
+	Owner          string    `json:"owner"`
+	URL            string    `json:"url"`
+	Key            []byte    `json:"-"`
+	KeyFingerprint string    `json:"key_fingerprint"`
+	Expires        time.Time `json:"expires"`
 }
 
 func eventOwner(token string) string {
@@ -173,12 +174,22 @@ func loadEventSubscription(f *fixture, id, owner string) (*eventSubscription, er
 		return nil, errors.New("subscription unavailable")
 	}
 	var r eventSubscription
-	if json.Unmarshal(body, &r) != nil || r.ID != id || r.Owner != owner || r.URL != f.callback || len(r.Key) < 24 || len(r.Key) > 64 || !time.Now().Before(r.Expires) {
+	if json.Unmarshal(body, &r) != nil || r.ID != id || r.Owner != owner || r.URL != f.callback || len(f.key) < 24 || len(f.key) > 64 || r.KeyFingerprint != eventKeyFingerprint(f.key) || !time.Now().Before(r.Expires) {
 		return nil, errors.New("subscription unavailable")
 	}
+	r.Key = append([]byte(nil), f.key...)
 	return &r, nil
 }
+func eventKeyFingerprint(key []byte) string {
+	sum := sha256.Sum256(key)
+	return hex.EncodeToString(sum[:])
+}
 func saveEventSubscription(f *fixture, r *eventSubscription) error {
+	// The fixed sink key stays in runtime secret configuration, never the volume.
+	if len(r.Key) < 24 || len(r.Key) > 64 || !hmac.Equal(r.Key, f.key) {
+		return errors.New("subscription key invalid")
+	}
+	r.KeyFingerprint = eventKeyFingerprint(r.Key)
 	file, err := os.CreateTemp(f.state, ".event-")
 	if err != nil {
 		return errors.New("subscription storage failed")

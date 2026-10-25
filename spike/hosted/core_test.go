@@ -220,3 +220,10 @@ routes := [{"subscription_id":"`+id+`","data":{"nonce":input.nonce}}]`); err != 
 		t.Fatal("independent sink receipt failed")
 	}
 }
+
+func TestExpiredHostedWindowFailsClosed(t *testing.T) {
+	t.Setenv("POC_EXPIRES_AT", "2000-01-01T00:00:00Z")
+	if _, err := loadFixture(); err == nil || err.Error() != "synthetic test window expired" {
+		t.Fatal("expired hosted window accepted")
+	}
+}

@@ -1,3 +1,15 @@
+# Approved hosted test bootstrap
+
+The user has explicitly approved creation of only POC_TEST_TOKEN, POC_RECEIPT_TOKEN and POC_WEBHOOK_SECRET, storage in the isolated Wasmer app and this repository's wasmer-poc environment, and removal/revocation after testing within 24 hours. Existing WASMER_TOKEN is unchanged. The previous approval-request text below is historical.
+
+Browser coordination is required because the connector does not expose GitHub environment-secret writes/deletion or workflow dispatch. In the authenticated regular browser, create/select environment wasmer-poc; generate two independent 32-byte bearer values and one independent 32-byte Standard Webhooks key (whsec_ + canonical base64); save only the three approved names as environment secrets without returning their values. Verify names, not values. Check current free allowance, then dispatch Manual synthetic Wasmer POC on main with confirm_no_spend=true. The default TCP DNS configuration is the public 1.1.1.1:53 resolver; it receives only DNS queries for the owned synthetic app callback. It is configuration, not a firewall grant. No alternative routes or insecure TLS are used if it fails.
+
+The workflow tests the exact candidate locally before writes, deploys a fail-closed app without service credentials, reads its actual owned URL, configures that fixed callback and a one-hour hard service expiration, then transfers the three environment values through CLI stdin into Wasmer secret storage and redeploys. Source inspection confirms CLI7.5 secret --from-file consumes dotenv despite misleading help text saying JSON. Raw CLI output and secrets are withheld. The full hosted test uses events methods, signed synthetic ingress, native Rego and receipt readback.
+
+An always-run cleanup deletes exactly the three Wasmer secret names, lists names to verify removal, redeploys without credentials and checks that the old token no longer reaches the live endpoint. Earlier versions have the one-hour expiration safeguard. The browser coordinator must then delete exactly the three GitHub environment secrets and verify their names absent, leaving WASMER_TOKEN unchanged. Any job cancellation/cleanup failure requires explicit residual reporting and manual follow-through within 24 hours. No cleanup success is assumed before observations.
+
+Subscription records now store only a key fingerprint; signing bytes are restored from app secret configuration and never persisted in registration volumes. No real GitHub webhook will be configured.
+
 # Next hosted POC gate
 
 The existing dedicated webhook-mcp-router-ci token, already approved and saved as repository secret WASMER_TOKEN, authorizes account-level deployment only. It must never become an MCP bearer token or a webhook signing key.
