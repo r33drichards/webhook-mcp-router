@@ -45,6 +45,10 @@ Check(runtime.Writes.Any(s=>s.Id==subscription),"HTTP tenant B cannot unsubscrib
 await Send(Rpc("events/unsubscribe",new{name=EventService.EventName,arguments=new{},delivery=new{mode="webhook",url="https://callback.example.invalid"}}),Token());
 Check(!runtime.Writes.Any(s=>s.Id==subscription),"HTTP owning tenant unsubscribe");
 Check(runtime.LogAppends==0,"HTTP MCP does not create webhook logs");
+using(var missing=new RouterRuntime()) {
+ var noConfig=new HttpEndpoints(missing);var context=new DefaultHttpContext();context.Request.Method="POST";context.Request.Body=new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+ Check(await noConfig.Webhook(context.Request,"unknown",CancellationToken.None) is StatusCodeResult{StatusCode:503},"missing server configuration is503, not client JSON400");
+}
 sealed class Keys(SecurityKey key):ISigningKeys{public Task<IReadOnlyList<SecurityKey>> GetAsync(bool refresh,CancellationToken ct)=>Task.FromResult<IReadOnlyList<SecurityKey>>([key]);}
 sealed class FixtureRuntime(TokenValidator validator):IRouterRuntime,IDisposable {
  public TokenValidator Validator=>validator;public string? LastTenant;public int LogAppends;public byte[] CallbackKey {get;}=RandomNumberGenerator.GetBytes(32);public List<Subscription> Writes {get;}=[];
@@ -66,3 +70,4 @@ sealed class FixtureRuntime(TokenValidator validator):IRouterRuntime,IDisposable
   protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r,CancellationToken ct){string body=await r.Content!.ReadAsStringAsync(ct);string id=r.Headers.GetValues("webhook-id").Single(),timestamp=r.Headers.GetValues("webhook-timestamp").Single();string signature="v1,"+Convert.ToBase64String(HMACSHA256.HashData(key,Encoding.UTF8.GetBytes(id+"."+timestamp+"."+body)));if(r.Headers.GetValues("webhook-signature").Single()!=signature)throw new Exception("bad signature");using var j=JsonDocument.Parse(body);return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(JsonSerializer.Serialize(new{challenge=j.RootElement.GetProperty("challenge").GetString()}))};}
  }
 }
+

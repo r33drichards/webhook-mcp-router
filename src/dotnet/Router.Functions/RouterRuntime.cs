@@ -14,11 +14,17 @@ public sealed class RouterRuntime:IRouterRuntime,IDisposable {
     private TenantSettings[]? settings;
     private readonly HttpClient callbackHttp=new(new SocketsHttpHandler{AllowAutoRedirect=false,UseProxy=false,ConnectTimeout=TimeSpan.FromSeconds(3)}){Timeout=TimeSpan.FromSeconds(10)};
     public TokenValidator Validator {get {Ensure();return validator!;}}
+    private static T Load<T>(string name) {
+        var text=Environment.GetEnvironmentVariable(name);
+        if(string.IsNullOrWhiteSpace(text))throw new InvalidOperationException("CONFIG_MISSING");
+        try {return JsonSerializer.Deserialize<T>(text)??throw new InvalidOperationException("CONFIG_INVALID");}
+        catch(JsonException){throw new InvalidOperationException("CONFIG_INVALID");}
+    }
     private void Ensure() {
         lock(sync) {
             if(validator is not null)return;
-            var auth=JsonSerializer.Deserialize<AuthSettings>(Environment.GetEnvironmentVariable("ROUTER_AUTH_JSON")??"")??throw new InvalidOperationException("CONFIG_MISSING");
-            var tenants=JsonSerializer.Deserialize<TenantSettings[]>(Environment.GetEnvironmentVariable("ROUTER_TENANTS_JSON")??"")??throw new InvalidOperationException("CONFIG_MISSING");
+            var auth=Load<AuthSettings>("ROUTER_AUTH_JSON");
+            var tenants=Load<TenantSettings[]>("ROUTER_TENANTS_JSON");
             if(tenants.Length is 0 or >100||tenants.Select(t=>t.TenantId).Distinct().Count()!=tenants.Length||tenants.Select(t=>t.SourceId).Distinct().Count()!=tenants.Length)throw new InvalidOperationException("CONFIG_INVALID");
             foreach(var t in tenants) {
                 _=new TenantContext(t.TenantId,"configuration",[]);
