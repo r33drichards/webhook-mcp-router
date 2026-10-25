@@ -1,0 +1,9 @@
+**/.terraform/
+**/*.tfstate*
+**/*.tfplan
+**/tfplan*
+**/crash.log
+**/*.tfvars
+**/*.tfvars.json
+**/backend*.hcl
+# Lockfiles contain dependency checksums, not credentials; commit reviewed locks.

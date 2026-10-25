@@ -1,0 +1,27 @@
+# Optional supported federation upgrade — approval and rehearsal required
+
+Candidate target: **Keycloak 26.8.1**, official release available at review time, with Terraform provider **keycloak/keycloak5.10.0**. Provider acceptance coverage explicitly lists 26.4.7 and26.8.0; 26.8.1 is a patch candidate to qualify, not a claimed tested combination in this workspace. Pin the official container image by verified digest during preparation; no digest is guessed here. Current Terraform configuration deliberately stays at 26.4.7 until an actual approved upgrade is verified.
+
+Federated client authentication for external OIDC assertions became fully supported in 26.6.0, independently of JWT Authorization Grant (also promoted then). 26.8 source marks CLIENT_AUTH_FEDERATED as DEFAULT. For GitHub machine identity, prefer the client_credentials + federated client assertion route, not user provisioning through the JWT Authorization Grant. An upgrade is not technically required to experiment on 26.4.7, but is the proposed route to avoid its preview feature. No automatic preview enablement, restart or upgrade is performed.
+
+- [26.6 supported-feature announcement](https://www.keycloak.org/2026/04/keycloak-2660-released)
+- [26.8 feature classification](https://github.com/keycloak/keycloak/blob/26.8.0/common/src/main/java/org/keycloak/common/Profile.java)
+- [26.8.1 release](https://github.com/keycloak/keycloak/releases/tag/26.8.1)
+- [Official upgrade guide](https://www.keycloak.org/docs/latest/upgrading/index.html)
+
+## Shared H2 instance makes this a maintenance operation
+
+Parent reports the existing instance uses H2 and hosts the active browser `mcp` realm. Keycloak documents H2/dev-file as development storage, with migration limitations. Do not characterize an in-place H2 upgrade as a supported production database migration or promise rolling/zero downtime. The26.6 rolling patch-upgrade feature does not turn a26.4→26.8 minor-version jump on one H2 instance into a rolling upgrade. Keep the 4 GB allocation unchanged; no resize is proposed.
+
+Preferred sequence is a separately approved private rehearsal before any live edit:
+
+1. Read-only inventory: exact 26.4.7 image/digest, startup command, feature flags, volume mount and actual H2 persistence location, custom providers/themes, hostname/proxy settings, realm/client inventory and backup capabilities. Do not export credentials into logs. A working Console says nothing about backup recoverability.
+2. Obtain approval for backup access/storage, a maintenance window and any isolated rehearsal resources/cost. Stop writes and the Keycloak process cleanly before taking an H2 filesystem/volume backup; do not use an arbitrary online file copy of the active DB. Preserve the old deployment image, configuration references and complete database backup in approved encrypted private storage. Realm export may supplement this but is not a full replacement for DB/session backup and can contain credentials.
+3. Restore the backup into an isolated instance/volume without connecting live clients or outgoing identity integrations. Never mount the same H2 volume simultaneously in old/new servers. Rehearse 26.8.1, measure startup/schema migration duration and memory at 4 GB, and prove backup restore using 26.4.7. If H2 migration is unsupported or fails, stop: review an explicit migration to supported PostgreSQL as a separate database/resource/budget decision. Do not silently provision PostgreSQL, discard the DB, recreate browser clients or invent a data migration.
+4. Regression matrix: existing browser realm issuer/keys, authorization-code+PKCE login and callbacks, refresh/session behavior, confidential-client behavior, Admin Console, current tools, and negative token tests. New-realm federation tests must prove exact GitHub issuer/subject/audience, TTL/replay rejection, JWKS rotation, bad repo/environment rejection and denial of access to `mcp`/other realms. Provider schema validation is not this runtime proof.
+5. Only after rehearsal and explicit live approval: announce measured downtime window, freeze writes, stop service, take and verify final backup, switch to reviewed image/config, start one instance and run acceptance checks. Preserve canonical hostname/issuer and browser client configuration. Reauthentication may be necessary; do not promise session preservation.
+6. Rollback on migration/startup failure, browser login/refresh regression or deadline breach: stop the new service, restore the pre-upgrade DB/volume **and** old image/config together, then verify browser auth. Never merely downgrade the binary against a migrated database. No concurrent divergent writes during the rollback window; post-cutover changes can be lost on restore.
+
+Actual downtime is not measured yet: budget for clean stop + final backup + migration/startup + verification, with a rollback cutoff derived from rehearsal. Root must present that estimate and exact window before live approval. Current willingness to upgrade is not approval to interrupt the browser service, create trust, migrate data or change credentials.
+
+Once upgraded, change Terraform's keycloak_version pin to the verified version and revalidate the provider. Bootstrap the new realm and GitHub trust only through separately recognized authorization; the denied realm/client mutation remains paused. No commands here are executed against Railway or Keycloak.
