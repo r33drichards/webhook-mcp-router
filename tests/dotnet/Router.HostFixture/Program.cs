@@ -26,6 +26,11 @@ sealed class FixtureRuntime:IRouterRuntime,IDisposable {
         var tenant=new TenantContext("tenant-a","source-a",["requests:append"]);var key=Convert.FromBase64String(config.IngressKey);
         return new(new Ingestion(new SqlRegistrationReader(config.Connection,tenant),new SqlOutbox(config.Connection,tenant),new OpaEvaluator(config.Opa,config.Capabilities),tenant,key),new SqlRequestLog(config.Connection,tenant,new()),new RequestCapture(),key);
     }
+    public async Task DispatchAsync(DispatchWakeup wakeup,CancellationToken ct) {
+        if(wakeup.TenantId!="tenant-a"||wakeup.SourceId!="source-a")throw new UnauthorizedAccessException("FIXTURE_SOURCE_DENIED");
+        await using var db=new Microsoft.Data.SqlClient.SqlConnection(config.Connection);await db.OpenAsync(ct);
+        await using var cmd=new Microsoft.Data.SqlClient.SqlCommand("INSERT dbo.FixtureWakeup(Received) VALUES(1)",db);await cmd.ExecuteNonQueryAsync(ct);
+    }
     public void Dispose()=>http.Dispose();
     private sealed class Keys(IReadOnlyList<SecurityKey> keys):ISigningKeys {public Task<IReadOnlyList<SecurityKey>> GetAsync(bool refresh,CancellationToken ct)=>Task.FromResult(keys);}
     private sealed class DenyNetwork:HttpMessageHandler {protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r,CancellationToken ct)=>throw new InvalidOperationException("FIXTURE_OUTBOUND_DISABLED");}

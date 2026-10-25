@@ -36,7 +36,7 @@ jobs:
       - name: Test real local HTTPS and certificate rejection
         shell: pwsh
         run: |
-          dotnet run --project tests/dotnet/Router.DeliveryChecks --configuration Release
+          dotnet run --project tests/dotnet/Router.DeliveryChecks --configuration Release -- (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
           if ($LASTEXITCODE -ne 0) { throw 'HTTPS delivery checks failed' }
       - name: Test OAuth validation and tenant mapping
         shell: pwsh

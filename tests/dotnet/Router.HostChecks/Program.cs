@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Azure.Storage.Queues;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -22,6 +23,7 @@ async Task Drain(StreamReader reader){while(await reader.ReadLineAsync() is stri
 async Task Start() {
  var p=new ProcessStartInfo(Path.GetFullPath(args[0])){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true};
  foreach(var value in new[]{"start","--no-build","--script-root",Path.GetFullPath(args[1]),"--port","7072","--address","127.0.0.1"})p.ArgumentList.Add(value);
+ p.Environment["RouterQueue"]="UseDevelopmentStorage=true";p.Environment["AzureWebJobs.RouterReconcile.Disabled"]="true";
  p.Environment["FUNCTIONS_WORKER_RUNTIME"]="dotnet-isolated";p.Environment["AzureWebJobsStorage"]="UseDevelopmentStorage=true";p.Environment["AzureWebJobsSecretStorageType"]="files";p.Environment["FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT"]="1";
  p.Environment["ROUTER_HOST_FIXTURE"]=JsonSerializer.Serialize(new{Connection=connection,PublicJwks=jwks,IngressKey=Convert.ToBase64String(ingressKey),Opa=Path.GetFullPath(args[2]),Capabilities=Path.GetFullPath(args[3])});
  host=Process.Start(p)??throw new Exception("HOST_START_FAILED");stdout=Drain(host.StandardOutput);stderr=Drain(host.StandardError);
@@ -38,9 +40,20 @@ async Task<(int,JsonNode?)> Rpc(string method,object parameters,string? token) {
 async Task<JsonNode> Tool(string name,object arguments,string token){var(status,rpc)=await Rpc("tools/call",new{name,arguments},token);Check(status==200,"tool HTTP200 "+name);return rpc!["result"]!;}
 JsonNode Data(JsonNode result)=>JsonNode.Parse(result["content"]![0]!["text"]!.GetValue<string>())!["result"]!;
 async Task<int> Ingress(string id,byte[] body,bool valid){using var request=new HttpRequestMessage(HttpMethod.Post,"/api/webhooks/source-a"){Content=new ByteArrayContent(body)};request.Headers.Add("X-GitHub-Delivery",id);request.Headers.Add("X-GitHub-Event","issues");request.Headers.Add("X-Hub-Signature-256","sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(valid?ingressKey:new byte[32],body)));using var response=await http.SendAsync(request);return(int)response.StatusCode;}
+var dispatchQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch",new QueueClientOptions{MessageEncoding=QueueMessageEncoding.Base64});
 bool success=false;
 try {
- await Sql(master,"CREATE DATABASE ["+dbName+"]");await SqlMigration.ApplyAsync(connection);await Start();var a=Token();var b=Token("b");
+ await Sql(master,"CREATE DATABASE ["+dbName+"]");await SqlMigration.ApplyAsync(connection);
+ await Sql(connection,"CREATE TABLE dbo.FixtureWakeup(Received int NOT NULL)");
+ await dispatchQueue.CreateIfNotExistsAsync();await dispatchQueue.ClearMessagesAsync();
+ await Start();
+ await dispatchQueue.SendMessageAsync("{\"TenantId\":\"tenant-a\",\"SourceId\":\"source-a\"}");
+ bool triggered=false;
+ for(int attempt=0;attempt<45;attempt++) {
+  await using var db=new SqlConnection(connection);await db.OpenAsync();await using var cmd=new SqlCommand("SELECT COUNT(*) FROM dbo.FixtureWakeup",db);
+  if(Convert.ToInt32(await cmd.ExecuteScalarAsync())>0){triggered=true;break;}await Task.Delay(1000);
+ }
+ Check(triggered,"actual queue trigger deserializes wakeup and invokes runtime using local Azurite");var a=Token();var b=Token("b");
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");
  Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==3,"exploration catalog");
@@ -59,6 +72,6 @@ try {
  Check(final.Any(x=>x!["Request"]!["Authenticated"]!.GetValue<bool>()==false&&x["Request"]!["Payload"] is null),"unverified log metadata only");
  success=true;Console.WriteLine("LIMIT: actual Functions host with synthetic static signing-key DI and real LocalDB; production HTTPS JWKS retrieval and live Keycloak remain untested. No callback delivery attempted.");
 } finally {
- await Stop();SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");
+ await Stop();await dispatchQueue.DeleteIfExistsAsync();SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");
  if(!success){/* Never print raw host logs: synthetic auth/signing fixture values may appear in diagnostics. */ Console.WriteLine("Host diagnostic withheld; failure assertion and host exit status identify stage.");}
 }
