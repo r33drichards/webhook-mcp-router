@@ -1,12 +1,14 @@
 """Approved isolated Wasmer POC lifecycle. Never prints CLI bodies or secrets.
 
-CLI 7.5.0 source, not its misleading JSON help text, confirms secret --from-file
-reads dotenv. Values flow through stdin, never argv, package files or artifacts.
+Wasmer published schema replaces deprecated secret APIs with envVars/updateEnvVars.
+Approved values travel only in TLS API bodies with sensitive=true, never logs/files.
 GitHub environment-secret deletion requires the coordinating browser owner.
 """
 import datetime,json,os,pathlib,re,subprocess,sys,time,urllib.error,urllib.parse,urllib.request
 
 APP='r33drichards/webhook-mcp-router'
+APP_ID='da_K6AIot5U1ND7'
+API='https://registry.wasmer.io/graphql'
 NAMES=('POC_TEST_TOKEN','POC_RECEIPT_TOKEN','POC_WEBHOOK_SECRET')
 STATE=pathlib.Path(os.environ.get('RUNNER_TEMP','/tmp'))/'webhook-edge-state.json'
 stage='configuration'
@@ -20,29 +22,47 @@ def cli(*args,stdin=None):
     if result.returncode:raise RuntimeError('Wasmer command failed; private output withheld')
     return result.stdout
 
-def secret_names():
-    result=json.loads(cli('app','secret','list','--app',APP,'--format=json','--non-interactive'))
-    if not isinstance(result,list):raise RuntimeError('unexpected secret-list shape')
-    return {item['name'] for item in result}
+def graphql(query,variables):
+    request=urllib.request.Request(API,data=json.dumps({'query':query,'variables':variables}).encode(),headers={'Authorization':'Bearer '+os.environ['WASMER_TOKEN'],'Content-Type':'application/json'})
+    with OPENER.open(request,timeout=45) as response:
+        body=response.read(262145)
+        if len(body)>262144:raise RuntimeError('API response limit')
+        data=json.loads(body)
+    if data.get('errors') or not isinstance(data.get('data'),dict):raise RuntimeError('API rejected operation; response withheld')
+    return data['data']
+
+ENV_QUERY="""query POCEnvMetadata($owner:String!,$name:String!,$names:[String]) {
+ getDeployApp(owner:$owner,name:$name) {
+  id name url envVars(names:$names,first:10) {edges {node {name sensitive}} pageInfo {hasNextPage}}
+ }
+}"""
+UPDATE_QUERY="""mutation POCEnvUpdate($input:UpdateEnvVarsInput!) {updateEnvVars(input:$input) {success}}"""
+
+def secret_metadata():
+    app=graphql(ENV_QUERY,{'owner':'r33drichards','name':'webhook-mcp-router','names':list(NAMES)}).get('getDeployApp')
+    if not app or app.get('id')!=APP_ID or app.get('name')!='webhook-mcp-router':raise RuntimeError('canonical app identity mismatch')
+    connection=app.get('envVars')
+    if not isinstance(connection,dict) or connection.get('pageInfo',{}).get('hasNextPage') is not False:raise RuntimeError('incomplete environment metadata')
+    nodes=[edge['node'] for edge in connection['edges']]
+    names={item['name']:item['sensitive'] for item in nodes}
+    if set(names)-set(NAMES) or len(names)!=len(nodes):raise RuntimeError('unexpected environment metadata')
+    return names
+
+def secret_names():return set(secret_metadata())
+
+def update_env(updates):
+    if not updates or any(item.get('name') not in NAMES for item in updates):raise RuntimeError('unapproved secret name')
+    if any(not item.get('delete') and item.get('sensitive') is not True for item in updates):raise RuntimeError('secret must be sensitive')
+    # Re-verify owner/name/ID before any mutation, including cleanup.
+    secret_metadata()
+    result=graphql(UPDATE_QUERY,{'input':{'appId':APP_ID,'envVars':updates}}).get('updateEnvVars')
+    if not result or result.get('success') is not True:raise RuntimeError('environment update not confirmed')
 
 def save(state):
     STATE.write_text(json.dumps(state)) # app identifiers/status only; never values
 
 def inspect_secrets():
-    # Read-only names/metadata query; this endpoint does not retrieve values.
-    result=subprocess.run(['wasmer','app','secret','list','--app',APP,'--format=json','--non-interactive'],text=True,capture_output=True,timeout=90)
-    error=re.sub(r'\x1b\[[0-9;]*m','',result.stderr)
-    for name,value in os.environ.items():
-        if any(word in name for word in ('TOKEN','SECRET','PASSWORD')) and len(value)>=8:error=error.replace(value,'[REDACTED]')
-    report={'operation':'list secret names only','exit_code':result.returncode,'stderr_redacted':error[-2000:]}
-    try:
-        data=json.loads(result.stdout)
-        report['json_type']=type(data).__name__
-        if isinstance(data,list):report['names']=[item.get('name') for item in data if isinstance(item,dict)]
-        elif isinstance(data,dict):report['keys']=sorted(data.keys())
-    except Exception:report['stdout_shape']='empty' if not result.stdout.strip() else 'non-JSON text withheld'
-    print(json.dumps(report),flush=True)
-    if result.returncode:raise RuntimeError('read-only CLI inspection failed')
+    print(json.dumps({'operation':'current envVars metadata only','app_id':APP_ID,'names_and_sensitivity':secret_metadata()}),flush=True)
 
 def deploy():
     global stage
@@ -50,6 +70,8 @@ def deploy():
         if not os.environ.get(name):raise RuntimeError('missing approved environment secret')
     state={'secrets_attempted':False,'app':APP}
     save(state)
+    stage='validate-canonical-app-and-empty-approved-names'
+    if secret_names():raise RuntimeError('temporary names already exist; refuse overwrite')
     stage='bootstrap-fail-closed-app'
     manifest=pathlib.Path('deploy/wasmer.toml')
     sha=os.environ.get('GITHUB_SHA','')
@@ -59,6 +81,7 @@ def deploy():
     # Startup has no service credentials yet and fails closed. No health wait.
     cli('deploy','--dir','deploy','--non-interactive','--publish-package','--no-persist-id','--no-wait','--format=json')
     app=json.loads(cli('app','get',APP,'--format=json'))
+    if app.get('id')!=APP_ID:raise RuntimeError('deployed app identity mismatch')
     url=app['url'].rstrip('/')
     parsed=urllib.parse.urlsplit(url)
     if parsed.scheme!='https' or not parsed.hostname.endswith('.wasmer.app') or parsed.path or parsed.query or parsed.fragment or parsed.username:
@@ -78,9 +101,11 @@ def deploy():
     if secret_names().intersection(NAMES):raise RuntimeError('temporary names already exist; refuse overwrite')
     stage='transfer-approved-app-secrets'
     state['secrets_attempted']=True;save(state)
-    dotenv=''.join(name+'='+os.environ[name]+'\n' for name in NAMES)
-    cli('app','secret','create','--app',APP,'--from-file','/dev/stdin','--non-interactive','--redeploy',stdin=dotenv)
-    if not set(NAMES)<=secret_names():raise RuntimeError('secret creation not confirmed')
+    update_env([{'name':name,'value':os.environ[name],'sensitive':True} for name in NAMES])
+    if secret_metadata()!={name:True for name in NAMES}:raise RuntimeError('sensitive secret creation not confirmed')
+    stage='redeploy-sensitive-environment'
+    redeployed=graphql('mutation POCRedeploy($id:ID!) {redeployActiveAppVersion(input:{appId:$id}) {app {id}}}',{'id':APP_ID}).get('redeployActiveAppVersion')
+    if not redeployed or redeployed.get('app',{}).get('id')!=APP_ID:raise RuntimeError('redeploy not confirmed')
     print('Confirmed three temporary app-secret names; values withheld',flush=True)
     stage='wait-for-initialized-service'
     body=json.dumps({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'synthetic-ready','version':'1'}}}).encode()
@@ -106,7 +131,7 @@ def cleanup():
     errors=[]
     for name in NAMES:
         stage='delete-'+name
-        try:cli('app','secret','delete','--app',APP,'--force','--non-interactive',name)
+        try:update_env([{'name':name,'delete':True}])
         except Exception:errors.append(name)
     stage='verify-secret-removal'
     try:
@@ -127,7 +152,9 @@ def cleanup():
             time.sleep(5)
         else:errors.append('old credential rejection unverified')
     # Earlier app versions also carry a one-hour service expiration safeguard.
-    if errors:raise RuntimeError('Wasmer cleanup incomplete')
+    if errors:
+        print('Cleanup residual checks: '+', '.join(errors),flush=True)
+        raise RuntimeError('Wasmer cleanup incomplete')
     print('PASS verified removal of three Wasmer secret names, credential-free redeploy and live rejection',flush=True)
     print('PENDING browser verification: delete only three POC secrets from GitHub wasmer-poc environment; leave WASMER_TOKEN unchanged',flush=True)
 

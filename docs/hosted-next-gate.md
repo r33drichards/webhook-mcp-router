@@ -1,3 +1,7 @@
+# Current bootstrap API correction
+
+Use the published current envVars/updateEnvVars API with sensitive=true and exact app ID da_K6AIot5U1ND7. The older CLI secret/stdin approach below is superseded after its deprecated getAppSecrets operation returned null. Current reads request metadata only; secrets are never returned. The three approved names remain in GitHub for this session and have not been created in Wasmer. No new values are needed for the retry. See docs/edge-secret-preflight.md for source contract and five offline regression tests.
+
 # Approved hosted test bootstrap
 
 The user has explicitly approved creation of only POC_TEST_TOKEN, POC_RECEIPT_TOKEN and POC_WEBHOOK_SECRET, storage in the isolated Wasmer app and this repository's wasmer-poc environment, and removal/revocation after testing within 24 hours. Existing WASMER_TOKEN is unchanged. The previous approval-request text below is historical.
