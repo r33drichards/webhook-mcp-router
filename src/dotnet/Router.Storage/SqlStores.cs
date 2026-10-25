@@ -81,7 +81,7 @@ public sealed class SqlOutbox(string connection,TenantContext tenant) : IOutbox 
     public async Task<ClaimedDelivery?> ClaimAsync(TimeSpan leaseTime,CancellationToken ct) {
         int seconds=(int)leaseTime.TotalSeconds;if(seconds is <1 or >300)throw new ArgumentException("LEASE_LIMIT");
         await using var db=new SqlConnection(connection);await db.OpenAsync(ct);
-        await using var cmd=new SqlCommand("UPDATE TOP(1) delivery.Outbox WITH(UPDLOCK,READPAST,READCOMMITTEDLOCK) SET Lease=@lease,LeaseUntil=DATEADD(second,@seconds,SYSUTCDATETIME()),Attempts=Attempts+1 OUTPUT inserted.Id,inserted.SubscriptionId,inserted.Body,inserted.Lease,inserted.Attempts WHERE TenantId=@tenant AND Status='pending' AND Available<=SYSUTCDATETIME() AND (LeaseUntil IS NULL OR LeaseUntil<=SYSUTCDATETIME())",db);
+        await using var cmd=new SqlCommand("SET TRANSACTION ISOLATION LEVEL READ COMMITTED; UPDATE TOP(1) delivery.Outbox WITH(UPDLOCK,READPAST,READCOMMITTEDLOCK) SET Lease=@lease,LeaseUntil=DATEADD(second,@seconds,SYSUTCDATETIME()),Attempts=Attempts+1 OUTPUT inserted.Id,inserted.SubscriptionId,inserted.Body,inserted.Lease,inserted.Attempts WHERE TenantId=@tenant AND Status='pending' AND Available<=SYSUTCDATETIME() AND (LeaseUntil IS NULL OR LeaseUntil<=SYSUTCDATETIME())",db);
         cmd.Parameters.AddWithValue("@tenant",tenant.TenantId);cmd.Parameters.AddWithValue("@lease",Guid.NewGuid());cmd.Parameters.AddWithValue("@seconds",seconds);
         await using var r=await cmd.ExecuteReaderAsync(ct);return await r.ReadAsync(ct)?new(r.GetString(0),r.GetString(1),r.GetString(2),r.GetGuid(3),r.GetInt32(4)):null;
     }
