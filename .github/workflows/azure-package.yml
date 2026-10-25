@@ -12,14 +12,14 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
-      APPLICATION_COMMIT: 917536dcc8b99201ecf63f7e123423e9ba3dfceb
+      APPLICATION_COMMIT: 202440596112bbcfb0d470f59e888fa08abc985f
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 917536dcc8b99201ecf63f7e123423e9ba3dfceb
+          ref: 202440596112bbcfb0d470f59e888fa08abc985f
           path: source
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
@@ -76,7 +76,7 @@ jobs:
       - name: Upload only verified secret-free package and manifests
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: router-windows-917536dc-${{ github.run_id }}
+          name: router-windows-20244059-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/router-release/router.zip
             ${{ runner.temp }}/router-release/SHA256SUMS

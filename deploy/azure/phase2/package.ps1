@@ -12,6 +12,9 @@ $opa = Join-Path $publish 'tools/opa.exe'
 Invoke-WebRequest 'https://github.com/open-policy-agent/opa/releases/download/v1.9.0/opa_windows_amd64.exe' -OutFile $opa
 if ((Get-FileHash $opa -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'ea07eb413f7d0b258dc2e45d054ebb7df6fad42ad436bbe96e5dc6d5e7bc2951') { throw 'OPA digest mismatch' }
 Copy-Item policies/capabilities.json (Join-Path $publish 'policies/capabilities.json')
+# Example is packaged for reproducible verification; it is never automatically registered.
+New-Item -ItemType Directory (Join-Path $publish 'policies/trial') | Out-Null
+Copy-Item policies/trial/mcp-js-review.rego (Join-Path $publish 'policies/trial/mcp-js-review.rego')
 foreach ($required in @('host.json','functions.metadata','worker.config.json','Router.Functions.dll','tools/opa.exe','policies/capabilities.json')) {
  if (!(Test-Path (Join-Path $publish $required))) { throw "Missing package file: $required" }
 }

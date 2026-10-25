@@ -41,3 +41,11 @@ HTTPS is limited to DNS hosts on port443, no credentials/query/fragment, redirec
 Local real HTTPS tests verify exact signed body receipt, wrong-host/untrusted/expired certificate rejection, no redirect follow, DNS pinning, and pre-connect rejection of mixed public/private addresses. MCP SDK tests verify disabled registration, explicit enabling, scope checks and cross-tenant isolation. These tests do not establish Azure queue, SQL network, Keycloak or hosted callback readiness. CI and final package references will be recorded after completion.
 
 Before activation: reviewed migrations/grants, queue provisioning and role, approved Keycloak realm/client mapping, destination registration/credentials and receiver signature agreement, fresh Windows package, actual host/queue tests, controlled hosted E2E, then separately approved GitHub all-event hook for mcp-js. No real hooks, credentials, external deliveries or Azure changes are made by this handoff.
+
+## Host dependency compatibility
+
+Actual Core Tools 4.12.0 / Functions host 4.1048.200.26180 failed startup with Worker Storage.Queues 5.5.5: the host could not load Microsoft.Extensions.Options assembly version10. Worker 5.5.5 selects WebJobs Storage.Queues5.3.8, whose NuGet dependency includes Microsoft.Extensions.Hosting >=10.0.3. The application worker targeting .NET10 does not make the separate Functions host able to load that assembly.
+
+Worker Storage.Queues is therefore pinned to5.5.4 in both application and actual-host fixture. Microsoft's source maps it to WebJobs Storage.Queues5.3.7, which depends on Hosting>=8.0.1. Dispatch tests remain enabled; no assembly copying, binding bypass or removal of queue behavior is used. CI must prove host startup and actual queue invocation before packaging is accepted.
+
+Sources: [5.5.4 source mapping](https://github.com/Azure/azure-functions-dotnet-worker/blob/c447cd29f54d5c315a739c97ccea2d34466bcf54/extensions/Worker.Extensions.Storage.Queues/src/Worker.Extensions.Storage.Queues.csproj), [5.3.7 dependencies](https://www.nuget.org/packages/Microsoft.Azure.WebJobs.Extensions.Storage.Queues/5.3.7), [5.3.8 dependencies](https://www.nuget.org/packages/Microsoft.Azure.WebJobs.Extensions.Storage.Queues/5.3.8). Retest the host when upgrading any extension; a successful worker build alone is insufficient.
