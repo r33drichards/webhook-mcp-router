@@ -32,3 +32,65 @@ await Reject("package router\nroutes := [{\"subscription_id\":\"sub_test\",\"pay
 using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
 try { await evaluator.EvaluateAsync(policy, "{}", registered, cancelled.Token); throw new Exception("cancel not honored"); }
 catch (OperationCanceledException) { Console.WriteLine("PASS cancellation"); }
+
+// Synthetic provider contract; no real repository or webhook registration.
+const string prJson="""{"repository":{"id":100},"action":"opened","number":7,"pull_request":{"id":200,"number":7,"draft":false,"merged":false}}""";
+var prScope=new GitHubPullRequestScope(100,["opened","closed"]);
+const string delivery="00000000-0000-0000-0000-000000000001";
+GitHubPullRequestInput Pr(string json,string type="pull_request",string id=delivery) {
+ using var doc=System.Text.Json.JsonDocument.Parse(json);
+ return GitHubPullRequest.ValidateVerified(doc.RootElement,type,id,prScope);
+}
+void PrReject(string json,string label,string type="pull_request",string id=delivery) {
+ try{_=Pr(json,type,id);}catch(InvalidOperationException){Console.WriteLine("PASS "+label);return;}
+ throw new Exception(label);
+}
+Check(Pr(prJson).Number==7,"typed PR shape accepted");
+Check(Pr(prJson.Replace("\"merged\":false","\"merged\":null")).Merged is null,"nullable GitHub merged field accepted");
+PrReject(prJson.Replace("\"id\":100","\"id\":101"),"wrong repository denied");
+PrReject(prJson.Replace("opened","edited"),"unselected action denied");
+PrReject(prJson,"wrong event denied","push");
+PrReject(prJson,"invalid delivery GUID denied",id:"not-guid");
+PrReject(prJson.Replace("\"number\":7,\"draft\"","\"number\":8,\"draft\""),"mismatched PR number denied");
+PrReject(prJson.Replace("\"draft\":false","\"draft\":\"false\""),"wrong PR field type denied");
+PrReject(prJson.Replace("\"action\":\"opened\"","\"action\":\"opened\",\"action\":\"closed\""),"duplicate property denied");
+PrReject(prJson.Replace("\"id\":100","\"id\":9223372036854775808"),"repository numeric overflow denied");
+PrReject("null","nonobject PR denied");
+try{GitHubPullRequest.ValidateScope(new(100,[]));throw new Exception("Empty action scope accepted");}catch(ArgumentException){Console.WriteLine("PASS empty action scope denied");}
+
+var ingressKey=Enumerable.Repeat((byte)7,32).ToArray();
+var registry=new EmptyRegistry();var receipt=new CaptureOutbox();var logger=new CaptureLog();
+var typedIngress=new LoggedIngress(new Ingestion(registry,receipt,evaluator,new TenantContext("tenant-test","test",[]),ingressKey,prScope,"source-test"),logger,new RequestCapture(),ingressKey);
+byte[] Bytes(string s)=>System.Text.Encoding.UTF8.GetBytes(s);
+string Sign(byte[] raw)=>"sha256="+Convert.ToHexStringLower(System.Security.Cryptography.HMACSHA256.HashData(ingressKey,raw));
+async Task IngressReject(byte[] raw,string signature,string expected,string label) {
+ try{await typedIngress.AcceptAsync(delivery,"pull_request",raw,signature);}catch(InvalidOperationException e)when(e.Message==expected){Console.WriteLine("PASS "+label);return;}
+ throw new Exception(label);
+}
+await IngressReject(Bytes("not-json"),"sha256=bad","SIGNATURE_INVALID","signature checked before PR parsing");
+Check(logger.Last is {Authenticated:false,Payload:null,Status:"rejected"}&&registry.Reads==0,"invalid signature neither evaluated nor retained");
+var wrongRepo=Bytes(prJson.Replace("\"id\":100","\"id\":101"));
+await IngressReject(wrongRepo,Sign(wrongRepo),"SOURCE_SCOPE_DENIED","verified wrong repository rejected before policy evaluation");
+Check(logger.Last is {Authenticated:true,Redacted:true,Status:"rejected"}&&registry.Reads==0,"attributable rejection log redacted and policy untouched");
+var validPr=Bytes(prJson);
+Check(await typedIngress.AcceptAsync(delivery,"pull_request",validPr,Sign(validPr)),"verified scoped PR accepted");
+Check(receipt.Source=="source-test"&&registry.Reads==1,"configured source propagated to receipt storage");
+Check(!await typedIngress.AcceptAsync(delivery,"pull_request",validPr,Sign(validPr))&&logger.Last?.Status=="duplicate","duplicate receipt separately logged");
+
+sealed class EmptyRegistry:IRegistrationReader {
+ public int Reads;
+ public Task<RegistrationSnapshot> SnapshotAsync(string owner,CancellationToken ct){Reads++;return Task.FromResult(new RegistrationSnapshot([],[]));}
+}
+sealed class CaptureOutbox:IOutbox {
+ public string? Source;private readonly HashSet<string> seen=[];
+ public Task<bool> AcceptAsync(string source,string id,string hash,IReadOnlyList<PendingDelivery> deliveries,CancellationToken ct){Source=source;return Task.FromResult(seen.Add(source+":"+id));}
+ public Task<ClaimedDelivery?> ClaimAsync(TimeSpan lease,CancellationToken ct)=>throw new NotSupportedException();
+ public Task<bool> CompleteAsync(string id,Guid lease,CancellationToken ct)=>throw new NotSupportedException();
+ public Task<bool> RetryAsync(string id,Guid lease,TimeSpan delay,int max,CancellationToken ct)=>throw new NotSupportedException();
+}
+sealed class CaptureLog:IRequestLog {
+ public CapturedRequest? Last;
+ public Task AppendAsync(CapturedRequest request,CancellationToken ct){Last=request;return Task.CompletedTask;}
+ public Task<RequestLogPage> ListAsync(int limit,long? before,CancellationToken ct)=>throw new NotSupportedException();
+ public Task<CapturedRequest?> FindAsync(string id,CancellationToken ct)=>throw new NotSupportedException();
+}

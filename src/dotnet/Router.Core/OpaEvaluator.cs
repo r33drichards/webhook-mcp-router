@@ -61,7 +61,7 @@ public sealed class OpaEvaluator(string executable, string capabilities)
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var value in values.EnumerateArray())
                 {
-                    if (value.ValueKind != JsonValueKind.Object || value.EnumerateObject().Any(p => p.Name is not ("subscription_id" or "payload")))
+                    if (value.ValueKind != JsonValueKind.Object || value.EnumerateObject().Count()!=2 || value.EnumerateObject().Select(p=>p.Name).Distinct(StringComparer.Ordinal).Count()!=2 || value.EnumerateObject().Any(p => p.Name is not ("subscription_id" or "payload")))
                         throw new InvalidOperationException("POLICY_RESULT_INVALID");
                     string id = value.GetProperty("subscription_id").GetString() ?? "";
                     if (!registeredIds.Contains(id) || !seen.Add(id)) throw new InvalidOperationException("SUBSCRIPTION_NOT_ELIGIBLE");

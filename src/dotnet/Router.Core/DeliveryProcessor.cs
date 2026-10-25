@@ -3,12 +3,13 @@ using System.Text.Json;
 using System.Security.Cryptography;
 namespace Router.Core;
 
-public sealed class Ingestion(IRegistrationReader registrations,IOutbox outbox,OpaEvaluator evaluator,TenantContext tenant,byte[] ingressKey) {
+public sealed class Ingestion(IRegistrationReader registrations,IOutbox outbox,OpaEvaluator evaluator,TenantContext tenant,byte[] ingressKey,GitHubPullRequestScope? pullRequestScope=null,string sourceId="github") {
     public async Task<bool> AcceptAsync(string deliveryId,string eventType,byte[] rawBody,string signature,CancellationToken ct=default) {
         if(rawBody.Length>65536 || deliveryId.Length is 0 or >128 || eventType.Length is 0 or >64)throw new InvalidOperationException("INGRESS_LIMIT");
         string expected="sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(ingressKey,rawBody));
         if(ingressKey.Length<24 || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(expected),Encoding.ASCII.GetBytes(signature)))throw new InvalidOperationException("SIGNATURE_INVALID");
         using var body=JsonDocument.Parse(rawBody);
+        if(pullRequestScope is not null)_=GitHubPullRequest.ValidateVerified(body.RootElement,eventType,deliveryId,pullRequestScope);
         var snapshot=await registrations.SnapshotAsync(tenant.TenantId,ct);
         if(snapshot.Policies.Count>64||snapshot.Subscriptions.Count>1024)throw new InvalidOperationException("REGISTRY_LIMIT");
         var ids=snapshot.Subscriptions.Select(s=>s.Id).ToHashSet(StringComparer.Ordinal);
@@ -20,10 +21,10 @@ public sealed class Ingestion(IRegistrationReader registrations,IOutbox outbox,O
             catch { /* per-policy isolation; do not log policy/input/exception */ }
         }
         var deliveries=selected.Values.Select(route=> {
-            string id="evt_"+Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(tenant.TenantId+":github:"+deliveryId+":"+route.SubscriptionId)));
+            string id="evt_"+Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(tenant.TenantId+":"+sourceId+":"+deliveryId+":"+route.SubscriptionId)));
             return new PendingDelivery(id,route.SubscriptionId,JsonSerializer.Serialize(new {eventId=id,name=EventService.EventName,timestamp=DateTimeOffset.UtcNow.ToString("O"),data=route.Payload,cursor=(string?)null}));
         }).ToArray();
-        return await outbox.AcceptAsync("github",deliveryId,Convert.ToHexStringLower(SHA256.HashData(rawBody)),deliveries,ct);
+        return await outbox.AcceptAsync(sourceId,deliveryId,Convert.ToHexStringLower(SHA256.HashData(rawBody)),deliveries,ct);
     }
 }
 

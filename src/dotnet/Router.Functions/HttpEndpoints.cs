@@ -42,6 +42,8 @@ public sealed class HttpEndpoints(IRouterRuntime runtime) {
         }catch(ArgumentException){return new StatusCodeResult(413);}
         catch(InvalidOperationException e)when(e.Message=="INGRESS_LIMIT"){return new StatusCodeResult(413);}
         catch(InvalidOperationException e)when(e.Message=="SIGNATURE_INVALID"){return new UnauthorizedResult();}
+        catch(InvalidOperationException e)when(e.Message=="SOURCE_SCOPE_DENIED"){return new StatusCodeResult(403);}
+        catch(InvalidOperationException e)when(e.Message=="GITHUB_INPUT_INVALID"){return new BadRequestResult();}
         catch(System.Text.Json.JsonException){return new BadRequestResult();}
         catch(OperationCanceledException){throw;}
         catch{return new StatusCodeResult(503);}

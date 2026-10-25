@@ -11,7 +11,7 @@ public sealed class LoggedIngress(Ingestion ingestion,IRequestLog log,RequestCap
         string outcome="failed";
         try {
             bool accepted=await ingestion.AcceptAsync(deliveryId,eventType,body,signature,ct);outcome=accepted?"accepted":"duplicate";return accepted;
-        } catch(InvalidOperationException e) when(e.Message is "SIGNATURE_INVALID" or "INGRESS_LIMIT") {outcome="rejected";throw;}
+        } catch(InvalidOperationException e) when(e.Message is "SIGNATURE_INVALID" or "INGRESS_LIMIT" or "SOURCE_SCOPE_DENIED" or "GITHUB_INPUT_INVALID") {outcome="rejected";throw;}
         finally {
             // Independent bounded cancellation permits logging a caller-cancelled failure.
             // If storage fails, surface failure rather than claiming the request log was persisted.

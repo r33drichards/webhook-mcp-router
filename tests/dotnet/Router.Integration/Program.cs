@@ -27,6 +27,11 @@ try {
  Check(await oa.AcceptAsync("github","same",hash,[new("event","sub_shared","{}")],ct),"tenant A receipt");
  Check(await ob.AcceptAsync("github","same",hash,[new("event","sub_shared","{}")],ct),"tenant B same delivery ID independent");
  Check(!await oa.AcceptAsync("github","same",hash,[],ct),"receipt duplicate");
+ Check(await oa.AcceptAsync("other-source","same",hash,[],ct),"same delivery ID isolated by source");
+ try {await oa.AcceptAsync("github","same",new string('b',64),[],ct);throw new Exception("conflicting body accepted");}
+ catch(InvalidOperationException e)when(e.Message=="DELIVERY_ID_CONFLICT"){Console.WriteLine("PASS same delivery ID different body denied");}
+ var repeated=await Task.WhenAll(Enumerable.Range(0,4).Select(_=>oa.AcceptAsync("github","concurrent",hash,[],ct)));
+ Check(repeated.Count(x=>x)==1,"concurrent SQL receipts accepted exactly once");
  var claim=(await oa.ClaimAsync(TimeSpan.FromSeconds(30),ct))!;
  Check(!await ob.CompleteAsync(claim.Id,claim.Lease,ct),"cross tenant outbox lease denied");
  Check(await oa.CompleteAsync(claim.Id,claim.Lease,ct),"own lease completion");
