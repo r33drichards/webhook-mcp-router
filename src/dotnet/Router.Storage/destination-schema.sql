@@ -3,7 +3,7 @@ IF SCHEMA_ID('registry') IS NULL EXEC('CREATE SCHEMA registry');
 IF OBJECT_ID('registry.Destinations') IS NULL
 CREATE TABLE registry.Destinations (
  Owner varchar(64) NOT NULL, Id varchar(64) NOT NULL,
- Name nvarchar(128) NOT NULL, Tags nvarchar(4096) NOT NULL,
+ Name nvarchar(128) NOT NULL, Tags nvarchar(4000) NOT NULL,
  Enabled bit NOT NULL DEFAULT 0, Revision rowversion NOT NULL,
  PRIMARY KEY(Owner,Id), CONSTRAINT DestinationTags_JSON CHECK(ISJSON(Tags)=1)
 );
