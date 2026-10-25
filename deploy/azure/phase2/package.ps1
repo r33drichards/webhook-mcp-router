@@ -16,5 +16,6 @@ foreach ($required in @('host.json','functions.metadata','worker.config.json','R
  if (!(Test-Path (Join-Path $publish $required))) { throw "Missing package file: $required" }
 }
 if (Get-ChildItem $publish -Recurse -Filter local.settings.json) { throw 'Local settings must not be packaged' }
-Compress-Archive -Path (Join-Path $publish '*') -DestinationPath (Join-Path $Output 'router.zip')
+# ZipFile includes hidden extension files; Compress-Archive can omit hidden entries.
+[System.IO.Compression.ZipFile]::CreateFromDirectory($publish, (Join-Path $Output 'router.zip'))
 Get-FileHash (Join-Path $Output 'router.zip') -Algorithm SHA256

@@ -1,0 +1,83 @@
+name: Build closed Azure Functions package
+on:
+  push:
+    paths:
+      - '.github/workflows/azure-package.yml'
+      - 'deploy/azure/phase2/package.ps1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      APPLICATION_COMMIT: 1922c593d39e8ad6817a15eb3ce26a2b753be0f7
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 1922c593d39e8ad6817a15eb3ce26a2b753be0f7
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.402'
+      - name: Build pinned application and complete ZIP
+        shell: pwsh
+        working-directory: source
+        run: |
+          ../deploy/azure/phase2/package.ps1 -Output (Join-Path $env:RUNNER_TEMP 'router-release')
+      - name: Verify ZIP contents and pinned OPA execution
+        shell: pwsh
+        run: |
+          $release = Join-Path $env:RUNNER_TEMP 'router-release'
+          $unpacked = Join-Path $env:RUNNER_TEMP 'router-unpacked'
+          [System.IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $release 'router.zip'), $unpacked)
+          foreach ($file in @('host.json','functions.metadata','worker.config.json','Router.Functions.dll','tools/opa.exe','policies/capabilities.json','.azurefunctions')) {
+            if (!(Test-Path (Join-Path $unpacked $file))) { throw "ZIP missing $file" }
+          }
+          if (Get-ChildItem $unpacked -Recurse -Force -Filter local.settings.json) { throw 'Unexpected local settings' }
+          $manifest = @(Get-ChildItem $unpacked -Recurse -File -Force | ForEach-Object {
+            [ordered]@{path=[System.IO.Path]::GetRelativePath($unpacked,$_.FullName).Replace('\','/');sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant();size=$_.Length}
+          })
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $release 'files.json')
+          dotnet run --project source/tests/dotnet/Router.Checks --configuration Release -- (Join-Path $unpacked 'tools/opa.exe') (Join-Path $unpacked 'policies/capabilities.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged OPA checks failed' }
+          $digest = (Get-FileHash (Join-Path $release 'router.zip') -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  router.zip" | Set-Content (Join-Path $release 'SHA256SUMS')
+          [ordered]@{applicationCommit=$env:APPLICATION_COMMIT;packagingCommit=$env:GITHUB_SHA;dotnetSdk='10.0.402';opa='1.9.0';zipSha256=$digest;runId=$env:GITHUB_RUN_ID} | ConvertTo-Json | Set-Content (Join-Path $release 'build.json')
+          "Package SHA256: $digest" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+      - name: Install local host tools
+        shell: pwsh
+        run: |
+          npm install --prefix (Join-Path $env:RUNNER_TEMP 'host-tools') azure-functions-core-tools@4.12.0 azurite@3.35.0 --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Host install failed' }
+      - name: Boot extracted deployment package with actual Functions host
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'host-tools/node_modules'
+          $logs = Join-Path $env:RUNNER_TEMP 'host-logs'
+          New-Item -ItemType Directory $logs | Out-Null
+          $azurite = Start-Process node -ArgumentList @((Join-Path $tools 'azurite/dist/src/azurite.js'),'--silent','--location',$logs,'--blobHost','127.0.0.1','--queueHost','127.0.0.1','--tableHost','127.0.0.1') -PassThru -RedirectStandardOutput (Join-Path $logs 'azurite.out') -RedirectStandardError (Join-Path $logs 'azurite.err')
+          try {
+            python source/ci/functions-host-check.py --func (Join-Path $tools 'azure-functions-core-tools/bin/func.exe') --root (Join-Path $env:RUNNER_TEMP 'router-unpacked') --log-dir $logs
+            if ($LASTEXITCODE -ne 0) { throw 'Extracted-package host checks failed' }
+          } finally {
+            if (!$azurite.HasExited) { Stop-Process -Id $azurite.Id -Force }
+          }
+      - name: Upload only verified secret-free package and manifests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: router-windows-1922c593-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/router-release/router.zip
+            ${{ runner.temp }}/router-release/SHA256SUMS
+            ${{ runner.temp }}/router-release/build.json
+            ${{ runner.temp }}/router-release/files.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+# No Azure login, cloud secrets, credentials, uploads to Azure, or resource writes.
