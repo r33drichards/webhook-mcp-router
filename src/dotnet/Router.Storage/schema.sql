@@ -5,7 +5,7 @@ IF SCHEMA_ID('delivery') IS NULL EXEC('CREATE SCHEMA delivery');
 IF OBJECT_ID('registry.Subscriptions') IS NULL
 CREATE TABLE registry.Subscriptions (
  Id varchar(68) NOT NULL, Owner varchar(64) NOT NULL,
- Name nvarchar(128) NOT NULL, Arguments nvarchar(4096) NOT NULL,
+ Name nvarchar(128) NOT NULL, Arguments nvarchar(4000) NOT NULL,
  Callback nvarchar(2048) NOT NULL, KeyFingerprint varchar(64) NOT NULL,
  Expires datetimeoffset NOT NULL, Revision rowversion NOT NULL, PRIMARY KEY(Owner,Id)
 );
