@@ -1,0 +1,223 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageName": {
+      "type": "string"
+    },
+    "planName": {
+      "type": "string"
+    },
+    "appName": {
+      "type": "string"
+    },
+    "sqlServerName": {
+      "type": "string"
+    },
+    "adminLogin": {
+      "type": "string"
+    },
+    "adminObjectId": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westus2"
+    },
+    "databaseName": {
+      "type": "string",
+      "defaultValue": "router",
+      "allowedValues": [
+        "router"
+      ]
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[concat(parameters('appName'), '-registry-reader')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[concat(parameters('appName'), '-control')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[concat(parameters('appName'), '-delivery')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2023-08-01",
+      "name": "[parameters('sqlServerName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "version": "12.0",
+        "minimalTlsVersion": "1.2",
+        "publicNetworkAccess": "Disabled",
+        "administrators": {
+          "administratorType": "ActiveDirectory",
+          "principalType": "User",
+          "login": "[parameters('adminLogin')]",
+          "sid": "[parameters('adminObjectId')]",
+          "tenantId": "[subscription().tenantId]",
+          "azureADOnlyAuthentication": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2023-08-01",
+      "name": "[format('{0}/{1}', parameters('sqlServerName'), parameters('databaseName'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+      ],
+      "sku": {
+        "name": "GP_S_Gen5_2",
+        "tier": "GeneralPurpose",
+        "family": "Gen5",
+        "capacity": 2
+      },
+      "properties": {
+        "autoPauseDelay": 60,
+        "minCapacity": 0.5,
+        "maxSizeBytes": 34359738368,
+        "useFreeLimit": true,
+        "freeLimitExhaustionBehavior": "AutoPause",
+        "requestedBackupStorageRedundancy": "Local",
+        "zoneRedundant": false
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/default/router-content', parameters('storageName'))]",
+      "properties": {
+        "shareQuota": 1,
+        "enabledProtocols": "SMB"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2024-04-01",
+      "name": "[parameters('appName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp",
+      "identity": {
+        "type": "SystemAssigned, UserAssigned",
+        "userAssignedIdentities": "[createObject(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-registry-reader')),createObject(),resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-control')),createObject(),resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-delivery')),createObject())]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-registry-reader'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-control'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-delivery'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', parameters('storageName'), 'default', 'router-content')]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+        "enabled": false,
+        "publicNetworkAccess": "Disabled",
+        "httpsOnly": true,
+        "dailyMemoryTimeQuota": 1000,
+        "siteConfig": {
+          "alwaysOn": false,
+          "use32BitWorkerProcess": false,
+          "netFrameworkVersion": "v10.0",
+          "functionAppScaleLimit": 1,
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2",
+          "remoteDebuggingEnabled": false,
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "dotnet-isolated"
+            },
+            {
+              "name": "AzureWebJobsStorage__accountName",
+              "value": "[parameters('storageName')]"
+            },
+            {
+              "name": "AzureWebJobsStorage__credential",
+              "value": "managedidentity"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageName')), '2023-05-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "router-content"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "1"
+            },
+            {
+              "name": "OPA_EXECUTABLE",
+              "value": "D:\\home\\site\\wwwroot\\tools\\opa.exe"
+            },
+            {
+              "name": "OPA_CAPABILITIES",
+              "value": "D:\\home\\site\\wwwroot\\policies\\capabilities.json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageName')), parameters('appName'), 'host-blob-owner')]",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('appName'))]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2024-04-01', 'Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    }
+  ],
+  "outputs": {
+    "registry-reader-principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-registry-reader')), '2023-01-31').principalId]"
+    },
+    "registry-reader-clientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-registry-reader')), '2023-01-31').clientId]"
+    },
+    "control-principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-control')), '2023-01-31').principalId]"
+    },
+    "control-clientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-control')), '2023-01-31').clientId]"
+    },
+    "delivery-principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-delivery')), '2023-01-31').principalId]"
+    },
+    "delivery-clientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(parameters('appName'), '-delivery')), '2023-01-31').clientId]"
+    },
+    "sqlFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), '2023-08-01').fullyQualifiedDomainName]"
+    }
+  }
+}
