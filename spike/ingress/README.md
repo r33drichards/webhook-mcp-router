@@ -1,8 +1,8 @@
 # Synthetic in-process ingress fork
 
-Local source of `adnanh/webhook` pinned to `2bbdeb9f90b5f98c7b7b8976881efd6da9f69571`, with a focused patch in `inprocess.patch`. No external fork or publication was created. Original project licensing remains in `source/`.
+Local source of `adnanh/webhook` pinned to `2bbdeb9f90b5f98c7b7b8976881efd6da9f69571`, with a focused patch in `inprocess.patch`. The experimental source is published in `r33drichards/webhook-mcp-router`; no fork was created in the upstream owner account. Original project licensing remains in `source/`.
 
-**Uncompiled and untested.** Both native and WASI compilation are blocked by unavailable dependencies. See `../../docs/ingress-runtime-evidence.md`.
+**CI native tests and WASI compilation passed** in run 40158310070 after correcting WASI privilege-drop build tags. Local dependency access remains blocked. This is not an externally reachable Wasmer listener or a hosted combined-service pass. See `../../docs/ingress-runtime-evidence.md`.
 
 Only a configured hook named `synthetic-router` activates the new path. The handler intercepts that hook before the original parsing/execution code, requires POST, bounds raw bytes, verifies the fixed public synthetic HMAC key, then parses JSON. It does not invoke a subprocess or send any external requests. Existing hooks retain their upstream behavior.
 
@@ -14,7 +14,7 @@ The snapshot registry is process-local, not durable. CPU deadlines are cooperati
 
 Storage direction: the receiver must use read-only policy/subscription access; MCP owns read-write registration. This patch's registry is only a synthetic in-memory snapshot stand-in. Its `replace` helper is used by tests, not exposed by the receiver. No database connection or registration-write endpoint exists. A future read-only database adapter and any separate delivery outbox must preserve that separation.
 
-## Single-service MCP skeleton (uncompiled)
+## Single-service MCP skeleton (compiled in CI)
 
 The same fork now optionally mounts `/mcp` when `-synthetic-router-mcp` is passed. It uses the official Go SDK pinned to `v1.8.1-0.20261023154812-2e00768cde3f`, `Stateless: true`, and `JSONResponse: true`; those APIs were checked against the cached SDK source. The route accepts only POST from a loopback peer with no Origin header and bounds request bodies. This is a local test guard, not production authentication.
 

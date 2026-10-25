@@ -1,9 +1,8 @@
 {
   "ready": false,
   "blockers": [
-    "Official SDK fixture and combined service have not compiled with complete verified dependencies",
-    "Synthetic CGI/tool/sink code exists but official SDK and Wasmer execution are untested",
-    "Edge durable storage and outbound callback transport are not proven",
+    "Hosted WCGI HTTP mapping has not been tested (manual CGI guest tests passed)",
+    "Edge durable storage and guest outbound callback transport are not proven",
     "Exact events extension discovery/challenge/lifecycle remains incomplete",
     "Reviewed deploy/app.yaml, deploy/wasmer.toml and ci/build-hosted.sh do not yet exist",
     "Pinned Nix installer/toolchain and real vendorHash still required"

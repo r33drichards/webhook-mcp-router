@@ -1,0 +1,14 @@
+2026-10-25T03:28:49.8250730Z go version go1.27.3 linux/amd64
+2026-10-25T03:28:59.5767256Z wasmer 7.5.0
+2026-10-25T03:29:12.5943264Z PASS: Go CGI guest method/path/body/header. Not hosted MCP.
+2026-10-25T03:29:12.6050457Z ##[group]Run go mod tidy
+2026-10-25T03:29:12.6051213Z [36;1mgo test -mod=mod ./...[0m
+2026-10-25T03:29:12.6051649Z [36;1mGOOS=wasip1 GOARCH=wasm go build -mod=mod -trimpath -o /tmp/combined-probe.wasm .[0m
+2026-10-25T03:29:24.0138401Z all modules verified
+2026-10-25T03:30:12.4703129Z ok  	github.com/adnanh/webhook	13.337s
+2026-10-25T03:30:12.4704255Z ok  	github.com/adnanh/webhook/internal/hook	0.007s
+2026-10-25T03:30:12.4705906Z ok  	github.com/adnanh/webhook/internal/pidfile	0.004s
+2026-10-25T03:30:37.1808489Z ##[group]Run go mod tidy
+2026-10-25T03:30:37.1809956Z [36;1mGOOS=wasip1 GOARCH=wasm go build -trimpath -o /tmp/opa-go.wasm .[0m
+2026-10-25T03:30:40.4128810Z all modules verified
+2026-10-25T03:30:54.1242619Z PASS: embedded native Go OPA library under Wasmer, match/nonmatch/malformed input

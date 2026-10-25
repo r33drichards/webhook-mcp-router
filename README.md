@@ -1,8 +1,8 @@
 # Webhook MCP Router
 
-Experimental runtime investigation for a single Go webhook receiver, embedded OPA evaluator, and official Go MCP SDK control plane. Proposed public repository: `r33drichards/webhook-mcp-router`.
+Experimental runtime investigation for a single Go webhook receiver, embedded OPA evaluator, and official Go MCP SDK control plane. Public repository: `r33drichards/webhook-mcp-router`.
 
-**Not deployment-ready.** The combined Go service is uncompiled because dependency downloads were blocked locally. A synthetic authenticated CGI/tool/callback fixture is now implemented in `spike/hosted`, but its SDK integration is uncompiled and its Wasmer/hosted behavior untested. Exact event subscriptions and Edge durability remain incomplete. No hosted MCP end-to-end pass is claimed.
+**Not deployment-ready.** GitHub CI has passed the official SDK fixture's native tests, WASI build, and actual Wasmer CGI initialize/tools/create/fresh-instance readback. This uses manually supplied CGI metadata and mapped local storage, not hosted WCGI or Edge persistence. Exact event-subscription lifecycle and hosted outbound callbacks remain incomplete/unverified. The combined Go/OPA service passed native tests and WASI compilation; embedded Go OPA evaluation also passed under Wasmer (match/nonmatch/malformed-input assertions). Deployment stays gated.
 
 Locally verified: compiled OPA policy execution through a Wasmer C host (fallback approach), a standard-library Go CGI guest preserving synthetic request data, and mapped-file persistence across local instances. Standard Go WASI networking failed host connectivity tests. CGI guest success is not a WCGI HTTP-host test.
 

@@ -1,3 +1,7 @@
+# Verified runtime update
+
+Code commit `23fa45d9a39a3e840066355420a86a8a42a787e3` in public `r33drichards/webhook-mcp-router` passed GitHub CI run 40158341557: official SDK CGI initialization/tools/create/fresh-instance mapped-file readback under Wasmer, combined fork native tests and WASI compilation, and embedded Go OPA evaluation under Wasmer. Hosted WCGI, Edge persistence/outbound delivery, Nix release and exact event lifecycle remain unproven. Deployment is still gated. The parent verified Wasmer authentication/Free plan and stored the dedicated CI token privately; no token values belong in this document. Earlier uncompiled/unpublished statements below are historical.
+
 # Current execution update
 
 Public repository `r33drichards/webhook-mcp-router` is now approved. Parent is creating it; publication awaits confirmed availability and push authorization. GitHub Actions build/test preparation and one manually gated synthetic Wasmer deployment are authorized. Wasmer auth/cost/bootstrap and build/runtime prerequisites remain unresolved. Historical ideation-only/no-publication statements below describe earlier stages, not current authorization. The concrete synthetic official-SDK CGI fixture is in `spike/hosted`; stdlib native tests pass, SDK dependency setup remains blocked, and no hosted E2E pass exists.

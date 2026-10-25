@@ -1,3 +1,24 @@
+## Verified GitHub CI: SDK CGI and embedded Go OPA under Wasmer
+
+**PASS** on code commit `23fa45d9a39a3e840066355420a86a8a42a787e3`: [run 40158341557](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158341557), both `hosted-sdk` and `build` jobs successful. Go 1.27.3; Wasmer 7.5.0 with archive digest verified; GitHub Ubuntu 24.04 runner. Dependencies resolved through normal verified Go module flow in the authorized CI environment. Local network restrictions were not changed.
+
+Executed and asserted:
+
+- Official Go MCP SDK native fixture tests, WASI build, and actual Wasmer guest CGI initialize, tools/list, tools/call create and registration readback from a fresh guest instance using mapped host directories. No persistent MCP session/SSE channel required for this fixture.
+- Combined webhook fork with embedded OPA and SDK: native tests passed and WASI compilation passed after build-tag fix. Initial run failed with undefined syscall.Setgroups/Setgid/Setuid; fixed by selecting the existing explicit unsupported privilege-change error on wasip1. No silent privilege-drop success was introduced.
+- Embedded **Go OPA API** evaluator compiled into a WASI guest and executed by Wasmer: matching event selected exactly `sub_match`; nonmatching event selected no IDs; malformed JSON exited nonzero. This is not the compiled-policy Wasm ABI fallback.
+- Standard-library CGI guest preserved method/path/body/header.
+
+References: [SDK first successful job](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158166370/job/121063886462), [final combined/OPA job](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158341557/job/121064412634). Logs are in `docs/runtime-logs/github-sdk-ci.log` and `github-combined-opa-ci-excerpt.log`. Successful job steps exited 0; malformed-input probe explicitly asserted a nonzero guest exit.
+
+**Still not proven:** hosted WCGI HTTP mapping, Edge durable storage, guest outbound DB/callback transport, exact events-extension lifecycle, Nix release build, or full combined-service hosted E2E. No deployment workflow was dispatched. Parent reports Wasmer Free account and privately configured Actions secret WASMER_TOKEN; this agent did not read/recreate it. Readiness stays false while actual implementation and no-spend storage/hosting prerequisites remain unresolved. Earlier uncompiled statuses below are historical and superseded for the CI-tested cases only.
+
+## Publication and CI checkpoint
+
+Published audited source/tests/docs/workflows to public `r33drichards/webhook-mcp-router` through the authorized GitHub connector. Initial README commit: `0aaaa3040ce4d593548339d50c61fa78880fc19c`. Main implementation commit: `dd24259bd0ee6b70078679601dd1dd4d064bbc99`, verified as `main`. Build/test run: https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158166370 (initially queued; final status must be recorded separately). Manual deployment was not dispatched and readiness remains false. Historical unpublished/404 statements below are superseded by this checkpoint.
+
+Generated binaries/toolchains and upstream's stale vendor directory were excluded. Source dependencies will be resolved with verification in the authorized CI environment, without retrying local denied download paths.
+
 ## Synthetic hosted fixture implementation checkpoint
 
 Added `spike/hosted`: official pinned SDK CGI entrypoint, authenticated synthetic create/list/delete/emit tools, separate registration and receipt directories, fixed HTTPS sink, Standard Webhooks raw-byte HMAC verification before parsing, timestamp bounds and write-once replay rejection. This is a focused fixture, not the combined OPA service or complete events extension (discovery/challenge/TTL/cursor remain incomplete). No public endpoint or secret was configured.

@@ -9,3 +9,7 @@ Configuration requires `POC_STATE_DIR`, `POC_RECEIPT_DIR` (distinct absolute pat
 Registrations use filesystem marker files and receipts are separate write-once JSON files. This supports a minimal single-host fixture, not the selected production shared database or enforced RO/RW DB roles. Mapped local persistence does not establish Edge volume semantics. No automatic retry/outbox is implemented. A partial receipt write fails verification; replay receives 409. Test-only files require lifecycle cleanup; do not enable unbounded public access.
 
 Validated locally: `go test core.go core_test.go` passes using stdlib only, including native loopback TLS delivery. The official SDK `go test -mod=mod ./...` fails during dependency setup with `GOPROXY=off` because segmentio/encoding is absent. No SDK or WASI compatibility pass is claimed. CI now attempts full native SDK tests, WASI build, and `ci/sdk-cgi-check.py` fresh-instance Wasmer assertions. Hosted E2E remains separately gated. Nix build and deployment manifests are still pending.
+
+## Verified CI result
+
+Run [40158166370, hosted-sdk job](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40158166370/job/121063886462) passed official SDK native tests, Go 1.27.3 WASI compilation and Wasmer 7.5.0 CGI initialize/tools/create/readback across fresh instances. This supersedes the earlier uncompiled status for the CI environment. Local dependency denial remains unchanged. No hosted HTTP or outbound guest delivery pass is claimed.
