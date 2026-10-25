@@ -45,3 +45,7 @@ Endpoint publication remains pending explicit scope clarification after the deni
 ## Publication authorization update
 
 The user explicitly approved publication of all remaining project changes. The earlier endpoint-publication gate is superseded by that approval. This authorizes repository publication and CI, not live deployment, credentials or billing changes. The historical denial records above remain accurate for those attempts.
+
+## Published endpoint CI
+
+Endpoint implementation published at73d791efdfd8e7a9fcd1e791eb278019bb440bac. Both workflows passed: C# run40223928514 and general build40223928056. C# job121261207169 passed all68 assertions, including15 direct HTTP handler checks, and built the full Functions project. This still does not run a live Functions host. NuGet reported two advisories affecting transitive System.Security.Cryptography.Pkcs9.0.4; Router.Storage now explicitly pins patched9.0.21. References: https://github.com/advisories/GHSA-2fmv-rv2c-59x7 and https://github.com/advisories/GHSA-846f-f764-76mx . Dependency correction is verified by the subsequent CI run on its commit.
