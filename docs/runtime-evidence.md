@@ -1,3 +1,11 @@
+## Latest result: existing WASIX Go supports standard HTTPS with nonblocking dial
+
+Actual [CI run 40159664859](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40159664859), commit `56407ccfc5454004fedc5628e0e063e008044824`, tested Wasmer 7.5.0 with digest-verified upstream WASIX Go1.25.5. TCP, trusted TLS, unknown-CA and wrong-name rejection, synchronous HTTPS and **standard http.Client with net.Dialer.Control calling syscall.SetNonblock** all exited 0. The independent HTTPS host received and echoed exactly 15 synthetic bytes. No custom transport adapter or toolchain patch was implemented; certificate verification stayed enabled.
+
+The unchanged default http.Client comparison still exited1 awaiting headers, so the exploratory workflow remains red. The configured client pass is a real local Wasmer guest result, not native-only or managed Edge evidence. Source inspection identifies the fork dropping SOCK_NONBLOCK while Wasmer creates a blocking descriptor; this controlled difference supports that cause for the fixture. Exact full log: `docs/runtime-logs/wasix-go-nonblock.log`. Ranked prior art, pins, ABI details and remaining tests: [prior-art-networking.md](prior-art-networking.md).
+
+Actual SDK/OPA on the fork, DNS, concurrency/cancellation, shared durable database transport and hosted Edge E2E remain pending. No deployment occurred; no gate was removed. Earlier impossibility/hosting-switch suggestions below are historical and superseded by this narrower successful path.
+
 ## Prior-art correction and actual existing-toolchain tests
 
 The broader parallel source review found a real existing `wasix-org/go` networking fork, plus dispatchrun/net, wasibuilder, wasinet, Bytecode Alliance go-wasi/componentize-go, OpenList TinyGo HTTP and an experimental Go wasip3 route. See [prior-art-networking.md](prior-art-networking.md) for source pins, maintenance dates, exact ABI comparisons and test evidence. Earlier conclusions that no existing path was found were too narrow and are superseded.

@@ -1,0 +1,228 @@
+﻿2026-10-25T03:50:11.7527413Z Current runner version: '2.338.0'
+2026-10-25T03:50:11.7556807Z ##[group]Runner Image Provisioner
+2026-10-25T03:50:11.7557807Z Hosted Compute Agent
+2026-10-25T03:50:11.7558519Z Version: 20261021.618
+2026-10-25T03:50:11.7559209Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-25T03:50:11.7560018Z Build Date: 2026-10-21T00:45:21Z
+2026-10-25T03:50:11.7560762Z Worker ID: {342737fb-f369-4df2-9e5d-419c8d35f7a4}
+2026-10-25T03:50:11.7561481Z Region: westus
+2026-10-25T03:50:11.7562137Z Cloud: Azure
+2026-10-25T03:50:11.7562711Z ##[endgroup]
+2026-10-25T03:50:11.7564532Z ##[group]Operating System
+2026-10-25T03:50:11.7565325Z Ubuntu
+2026-10-25T03:50:11.7565884Z 24.04.5
+2026-10-25T03:50:11.7566498Z LTS
+2026-10-25T03:50:11.7567222Z ##[endgroup]
+2026-10-25T03:50:11.7567806Z ##[group]Runner Image
+2026-10-25T03:50:11.7568509Z Image: ubuntu-24.04
+2026-10-25T03:50:11.7569109Z Version: 20261012.334.1
+2026-10-25T03:50:11.7570531Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-25T03:50:11.7572115Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-25T03:50:11.7573587Z ##[endgroup]
+2026-10-25T03:50:11.7574808Z ##[group]GITHUB_TOKEN Permissions
+2026-10-25T03:50:11.7577350Z Contents: read
+2026-10-25T03:50:11.7578328Z Metadata: read
+2026-10-25T03:50:11.7579081Z ##[endgroup]
+2026-10-25T03:50:11.7581421Z Secret source: Actions
+2026-10-25T03:50:11.7582565Z Cache mode: write
+2026-10-25T03:50:11.7583857Z Prepare workflow directory
+2026-10-25T03:50:11.8023488Z Prepare all required actions
+2026-10-25T03:50:11.8088191Z Getting action download info
+2026-10-25T03:50:12.1625997Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-25T03:50:12.5548011Z Complete job name: existing-toolchain
+2026-10-25T03:50:12.6831306Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-10-25T03:50:12.6832495Z with:
+2026-10-25T03:50:12.6833046Z   persist-credentials: false
+2026-10-25T03:50:12.6833909Z   repository: r33drichards/webhook-mcp-router
+2026-10-25T03:50:12.6838166Z   token: ***
+2026-10-25T03:50:12.6838651Z   ssh-strict: true
+2026-10-25T03:50:12.6839144Z   ssh-user: git
+2026-10-25T03:50:12.6839600Z   clean: true
+2026-10-25T03:50:12.6840083Z   sparse-checkout-cone-mode: true
+2026-10-25T03:50:12.6840656Z   fetch-depth: 1
+2026-10-25T03:50:12.6841154Z   fetch-tags: false
+2026-10-25T03:50:12.6841664Z   show-progress: true
+2026-10-25T03:50:12.6842179Z   lfs: false
+2026-10-25T03:50:12.6842621Z   submodules: false
+2026-10-25T03:50:12.6843253Z   set-safe-directory: true
+2026-10-25T03:50:12.6843831Z   allow-unsafe-pr-checkout: false
+2026-10-25T03:50:12.6844708Z ##[endgroup]
+2026-10-25T03:50:12.8016539Z Syncing repository: r33drichards/webhook-mcp-router
+2026-10-25T03:50:12.8019674Z ##[group]Getting Git version info
+2026-10-25T03:50:12.8021077Z Working directory is '/home/runner/work/webhook-mcp-router/webhook-mcp-router'
+2026-10-25T03:50:12.8023094Z [command]/usr/bin/git version
+2026-10-25T03:50:12.8074480Z git version 2.55.0
+2026-10-25T03:50:12.8291335Z ##[endgroup]
+2026-10-25T03:50:12.8366879Z Temporarily overriding HOME='/home/runner/work/_temp/22ebece9-ecf6-4e99-9ff5-cfcbb997c773' before making global git config changes
+2026-10-25T03:50:12.8370397Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T03:50:12.8373016Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T03:50:12.8445324Z Deleting the contents of '/home/runner/work/webhook-mcp-router/webhook-mcp-router'
+2026-10-25T03:50:12.8475999Z ##[group]Initializing the repository
+2026-10-25T03:50:12.8505020Z [command]/usr/bin/git init /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T03:50:12.8614250Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-25T03:50:12.8624590Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-25T03:50:12.8652558Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-25T03:50:12.8654896Z hint: call:
+2026-10-25T03:50:12.8664375Z hint:
+2026-10-25T03:50:12.8665681Z hint: 	git config --global init.defaultBranch <name>
+2026-10-25T03:50:12.8667170Z hint:
+2026-10-25T03:50:12.8668532Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-25T03:50:12.8670545Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-25T03:50:12.8704944Z hint:
+2026-10-25T03:50:12.8706171Z hint: 	git branch -m <name>
+2026-10-25T03:50:12.8707343Z hint:
+2026-10-25T03:50:12.8708832Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-25T03:50:12.8711547Z Initialized empty Git repository in /home/runner/work/webhook-mcp-router/webhook-mcp-router/.git/
+2026-10-25T03:50:12.8755034Z [command]/usr/bin/git remote add origin https://github.com/r33drichards/webhook-mcp-router
+2026-10-25T03:50:12.9377771Z ##[endgroup]
+2026-10-25T03:50:12.9379292Z ##[group]Disabling automatic garbage collection
+2026-10-25T03:50:12.9383490Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-25T03:50:12.9437067Z ##[endgroup]
+2026-10-25T03:50:12.9438769Z ##[group]Setting up auth
+2026-10-25T03:50:12.9446781Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T03:50:12.9499685Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T03:50:13.0615286Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T03:50:13.0664741Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T03:50:13.0935538Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T03:50:13.0989856Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T03:50:13.1283669Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-25T03:50:13.3004992Z ##[endgroup]
+2026-10-25T03:50:13.3006442Z ##[group]Fetching the repository
+2026-10-25T03:50:13.3008356Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +56407ccfc5454004fedc5628e0e063e008044824:refs/remotes/origin/main
+2026-10-25T03:50:14.4406337Z From https://github.com/r33drichards/webhook-mcp-router
+2026-10-25T03:50:14.4407797Z  * [new ref]         56407ccfc5454004fedc5628e0e063e008044824 -> origin/main
+2026-10-25T03:50:14.4418805Z ##[endgroup]
+2026-10-25T03:50:14.4421102Z ##[group]Determining the checkout info
+2026-10-25T03:50:14.4423806Z ##[endgroup]
+2026-10-25T03:50:14.4425741Z [command]/usr/bin/git sparse-checkout disable
+2026-10-25T03:50:14.4487314Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-25T03:50:14.4534303Z ##[group]Checking out the ref
+2026-10-25T03:50:14.4538483Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-25T03:50:14.4702075Z Switched to a new branch 'main'
+2026-10-25T03:50:14.4713112Z branch 'main' set up to track 'origin/main'.
+2026-10-25T03:50:14.4719202Z ##[endgroup]
+2026-10-25T03:50:14.4777205Z [command]/usr/bin/git log -1 --format=%H
+2026-10-25T03:50:14.4812667Z 56407ccfc5454004fedc5628e0e063e008044824
+2026-10-25T03:50:14.4829984Z ##[group]Removing auth
+2026-10-25T03:50:14.4833642Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T03:50:14.4876316Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T03:50:14.5150207Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T03:50:14.5184725Z http.https://github.com/.extraheader
+2026-10-25T03:50:14.5195067Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-25T03:50:14.5240709Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T03:50:14.5511784Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T03:50:14.5559759Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T03:50:14.5827101Z ##[endgroup]
+2026-10-25T03:50:14.6115479Z ##[group]Run set -euo pipefail
+2026-10-25T03:50:14.6116896Z [36;1mset -euo pipefail[0m
+2026-10-25T03:50:14.6118087Z [36;1mmkdir -p "$RUNNER_TEMP/wasix-go"[0m
+2026-10-25T03:50:14.6121836Z [36;1mcurl --fail --silent --show-error --location --proto '=https' --tlsv1.2 https://github.com/wasix-org/go/releases/download/go1.25.5-6-wasix/go-1.25.5-linux-x86_64.tar.gz -o "$RUNNER_TEMP/wasix-go.tar.gz"[0m
+2026-10-25T03:50:14.6127236Z [36;1mprintf '%s  %s\n' c728bcffd6536f38125a652ada1da814bcf46c8cae974a873ab8f402f8d95ed0 "$RUNNER_TEMP/wasix-go.tar.gz" | sha256sum --check[0m
+2026-10-25T03:50:14.6130418Z [36;1mtar -xzf "$RUNNER_TEMP/wasix-go.tar.gz" -C "$RUNNER_TEMP/wasix-go"[0m
+2026-10-25T03:50:14.6132572Z [36;1m# Locate the archive's actual toolchain layout; require one Go compiler.[0m
+2026-10-25T03:50:14.6135145Z [36;1mmapfile -t compilers < <(find "$RUNNER_TEMP/wasix-go" -type f -path '*/bin/go')[0m
+2026-10-25T03:50:14.6137000Z [36;1mtest "${#compilers[@]}" = 1[0m
+2026-10-25T03:50:14.6138514Z [36;1mprintf 'WASIX_GO=%s\n' "${compilers[0]}" >> "$GITHUB_ENV"[0m
+2026-10-25T03:50:14.6389526Z shell: /usr/bin/bash -e {0}
+2026-10-25T03:50:14.6391018Z ##[endgroup]
+2026-10-25T03:50:17.0202228Z /home/runner/work/_temp/wasix-go.tar.gz: OK
+2026-10-25T03:50:18.5318801Z ##[group]Run bash ci/install-wasmer.sh
+2026-10-25T03:50:18.5319225Z [36;1mbash ci/install-wasmer.sh[0m
+2026-10-25T03:50:18.5390630Z shell: /usr/bin/bash -e {0}
+2026-10-25T03:50:18.5390990Z env:
+2026-10-25T03:50:18.5391330Z   WASIX_GO: /home/runner/work/_temp/wasix-go/bin/go
+2026-10-25T03:50:18.5391889Z ##[endgroup]
+2026-10-25T03:50:20.9292181Z /home/runner/work/_temp/wasmer-7.5.0/archive.tar.gz: OK
+2026-10-25T03:50:27.3419159Z wasmer 7.5.0
+2026-10-25T03:50:27.3484212Z ##[group]Run python3 ci/prior-art-check.py
+2026-10-25T03:50:27.3484662Z [36;1mpython3 ci/prior-art-check.py[0m
+2026-10-25T03:50:27.3554459Z shell: /usr/bin/bash -e {0}
+2026-10-25T03:50:27.3554790Z env:
+2026-10-25T03:50:27.3555049Z   WASIX_GO: /home/runner/work/_temp/wasix-go/bin/go
+2026-10-25T03:50:27.3555463Z   WASMER_DIR: /home/runner/work/_temp/wasmer-7.5.0
+2026-10-25T03:50:27.3555829Z ##[endgroup]
+2026-10-25T03:50:27.6248576Z go version go1.25.5 linux/amd64
+2026-10-25T03:50:40.7002513Z Backend used to parse the module: cranelift-opts
+2026-10-25T03:50:40.7004377Z Type: wasm
+2026-10-25T03:50:40.7004825Z Size: 9.5 MiB
+2026-10-25T03:50:40.7005242Z Imports:
+2026-10-25T03:50:40.7005598Z   Functions:
+2026-10-25T03:50:40.7006056Z     "wasi_snapshot_preview1"."sched_yield": [] -> [I32]
+2026-10-25T03:50:40.7006539Z     "wasi_snapshot_preview1"."proc_exit": [I32] -> []
+2026-10-25T03:50:40.7007034Z     "wasi_snapshot_preview1"."args_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7007677Z     "wasi_snapshot_preview1"."args_sizes_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7008286Z     "wasi_snapshot_preview1"."clock_time_get": [I32, I64, I32] -> [I32]
+2026-10-25T03:50:40.7008858Z     "wasi_snapshot_preview1"."environ_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7009408Z     "wasi_snapshot_preview1"."environ_sizes_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7010011Z     "wasi_snapshot_preview1"."fd_write": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7011043Z     "wasi_snapshot_preview1"."random_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7011500Z     "wasi_snapshot_preview1"."poll_oneoff": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7011945Z     "wasi_snapshot_preview1"."fd_close": [I32] -> [I32]
+2026-10-25T03:50:40.7012356Z     "wasi_snapshot_preview1"."fd_read": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7012838Z     "wasi_snapshot_preview1"."fd_readdir": [I32, I32, I32, I64, I32] -> [I32]
+2026-10-25T03:50:40.7013687Z     "wasi_snapshot_preview1"."fd_filestat_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7014147Z     "wasi_snapshot_preview1"."fd_write": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7014647Z     "wasi_snapshot_preview1"."path_filestat_get": [I32, I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7015200Z     "wasi_snapshot_preview1"."path_readlink": [I32, I32, I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7015796Z     "wasi_snapshot_preview1"."path_open": [I32, I32, I32, I32, I32, I64, I64, I32, I32] -> [I32]
+2026-10-25T03:50:40.7016341Z     "wasi_snapshot_preview1"."random_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7016768Z     "wasi_snapshot_preview1"."fd_fdstat_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7017246Z     "wasi_snapshot_preview1"."fd_fdstat_set_flags": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7017708Z     "wasi_snapshot_preview1"."fd_prestat_get": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7018191Z     "wasi_snapshot_preview1"."fd_prestat_dir_name": [I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7018662Z     "wasix_32v1"."getcwd": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7019015Z     "wasix_32v1"."sock_addr_local": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7019382Z     "wasix_32v1"."sock_addr_peer": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7019757Z     "wasix_32v1"."sock_open": [I32, I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7020146Z     "wasix_32v1"."sock_set_opt_flag": [I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7020565Z     "wasix_32v1"."sock_get_opt_flag": [I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7021036Z     "wasix_32v1"."sock_set_opt_size": [I32, I32, I64] -> [I32]
+2026-10-25T03:50:40.7021418Z     "wasix_32v1"."sock_get_opt_size": [I32, I32, I32] -> [I32]
+2026-10-25T03:50:40.7021762Z     "wasix_32v1"."sock_bind": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7022079Z     "wasix_32v1"."sock_listen": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7022404Z     "wasix_32v1"."sock_connect": [I32, I32] -> [I32]
+2026-10-25T03:50:40.7022697Z   Memories:
+2026-10-25T03:50:40.7022880Z   Tables:
+2026-10-25T03:50:40.7023065Z   Globals:
+2026-10-25T03:50:40.7023727Z   Tags:
+2026-10-25T03:50:40.7023926Z Exports:
+2026-10-25T03:50:40.7024111Z   Functions:
+2026-10-25T03:50:40.7024310Z     "_start": [] -> []
+2026-10-25T03:50:40.7024518Z   Memories:
+2026-10-25T03:50:40.7024727Z     "memory": not shared (86 pages..)
+2026-10-25T03:50:40.7024992Z   Tables:
+2026-10-25T03:50:40.7025169Z   Globals:
+2026-10-25T03:50:40.7025345Z   Tags:
+2026-10-25T03:50:44.0958175Z {"stage": "tcp", "exit_code": 0, "stdout": "PASS tcp\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:50:44.2934511Z {"stage": "tls", "exit_code": 0, "stdout": "PASS tls\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:50:44.4927855Z {"stage": "untrusted", "exit_code": 0, "stdout": "PASS untrusted\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:50:44.6920493Z {"stage": "wrong-name", "exit_code": 0, "stdout": "PASS wrong-name\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:50:44.8957315Z {"host_receipt_bytes": 15, "expected_bytes": 15}
+2026-10-25T03:50:44.9052388Z {"stage": "https-sync-diagnostic", "exit_code": 0, "stdout": "PASS https-sync-diagnostic\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:50:45.1019230Z {"host_receipt_bytes": 15, "expected_bytes": 15}
+2026-10-25T03:50:45.1126946Z {"stage": "https-nonblock", "exit_code": 0, "stdout": "PASS https-nonblock\n", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\n"}
+2026-10-25T03:51:15.3436485Z {"host_receipt_bytes": 15, "expected_bytes": 15}
+2026-10-25T03:51:15.3438662Z ----------------------------------------
+2026-10-25T03:51:15.3439177Z Exception occurred during processing of request from ('127.0.0.1', 34584)
+2026-10-25T03:51:15.3511319Z {"stage": "https", "exit_code": 1, "stdout": "", "stderr": "warning: The `--mapdir` option is deprecated and will be removed in the next major release. Please use `--volume` instead.\nPost \"https://127.0.0.1:36945/synthetic\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n"}
+2026-10-25T03:51:15.4540386Z Traceback (most recent call last):
+2026-10-25T03:51:15.4541451Z   File "/home/runner/work/webhook-mcp-router/webhook-mcp-router/ci/prior-art-check.py", line 31, in <module>
+2026-10-25T03:51:15.4542462Z     assert result.returncode==0, 'existing toolchain stage failed: '+mode
+2026-10-25T03:51:15.4543078Z            ^^^^^^^^^^^^^^^^^^^^
+2026-10-25T03:51:15.4543817Z AssertionError: existing toolchain stage failed: https
+2026-10-25T03:51:15.4802523Z ##[error]Process completed with exit code 1.
+2026-10-25T03:51:15.4961942Z Post job cleanup.
+2026-10-25T03:51:15.5970977Z [command]/usr/bin/git version
+2026-10-25T03:51:15.6021799Z git version 2.55.0
+2026-10-25T03:51:15.6069483Z Temporarily overriding HOME='/home/runner/work/_temp/06478185-188c-4c16-829b-94084c52cc39' before making global git config changes
+2026-10-25T03:51:15.6070849Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T03:51:15.6075624Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/webhook-mcp-router/webhook-mcp-router
+2026-10-25T03:51:15.6132377Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T03:51:15.6180692Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T03:51:15.6485006Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T03:51:15.6537583Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T03:51:15.6882267Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T03:51:15.6929003Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T03:51:15.7442435Z Cleaning up orphan processes
+2026-10-25T03:51:15.7880619Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
