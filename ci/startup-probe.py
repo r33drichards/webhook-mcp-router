@@ -1,5 +1,5 @@
 """Credential-free packaged CGI diagnostic; never creates service secrets."""
-import importlib.util,json,os,pathlib,time,urllib.error,urllib.request
+import importlib.util,json,os,pathlib,sys,time,urllib.error,urllib.request
 spec=importlib.util.spec_from_file_location('edge',pathlib.Path(__file__).with_name('edge-lifecycle.py'))
 edge=importlib.util.module_from_spec(spec);spec.loader.exec_module(edge)
 
@@ -12,7 +12,7 @@ def request(url):
     data=None
     try:data=json.loads(body)
     except (ValueError,UnicodeError):pass
-    allowed={'POC_SIGNING_CONFIG_INVALID','POC_ACCESS_CONFIG_INVALID','POC_STORAGE_CONFIG_INVALID',
+    allowed={'POC_DIAGNOSTIC_ONLY','POC_SIGNING_CONFIG_INVALID','POC_ACCESS_CONFIG_INVALID','POC_STORAGE_CONFIG_INVALID',
              'POC_CALLBACK_CONFIG_INVALID','POC_WINDOW_EXPIRED','POC_HTTP_CLIENT_INIT_FAILED',
              'POC_STORAGE_INIT_FAILED','POC_STARTUP_FAILED','POC_CGI_SERVE_FAILED'}
     code=data.get('error') if isinstance(data,dict) else None
@@ -21,11 +21,12 @@ def request(url):
             'runtime_ready':ready,'startup_code':code if isinstance(code,str) and code in allowed else None}
 
 def main():
+    constant=len(sys.argv)>1 and sys.argv[1]=='constant'
     if any(os.environ.get(n) for n in edge.NAMES):raise RuntimeError('service secrets must not be supplied')
     if edge.secret_names():raise RuntimeError('app must have no approved service-secret names')
     sha=os.environ['GITHUB_SHA']
     if len(sha)!=40 or any(c not in '0123456789abcdef' for c in sha):raise RuntimeError('invalid revision')
-    p=pathlib.Path('deploy/wasmer.toml');p.write_text(p.read_text().replace('version = "0.0.1"','version = "0.0.1-ci.'+sha[:12]+'"',1))
+    p=pathlib.Path('deploy/wasmer.toml');p.write_text(p.read_text().replace('version = "0.0.1"','version = "0.0.1-ci.'+sha[:12]+('.constant' if constant else '')+'"',1))
     edge.cli('deploy','--dir','deploy','--non-interactive','--publish-package','--no-persist-id','--no-wait','--format=json')
     # Canonical endpoint only; no redirects or arbitrary callbacks.
     if edge.secret_names():raise RuntimeError('unexpected service-secret names')
@@ -37,9 +38,9 @@ def main():
         time.sleep(5)
     else:raise RuntimeError('packaged CGI health failed')
     mcp=request(base+'/mcp');print(json.dumps({'path':'/mcp',**mcp}),flush=True)
-    if mcp['status']!=503 or mcp['startup_code']!='POC_SIGNING_CONFIG_INVALID':raise RuntimeError('unexpected credential-free startup result')
+    if mcp['status']!=(404 if constant else 503) or mcp['startup_code']!=('POC_DIAGNOSTIC_ONLY' if constant else 'POC_SIGNING_CONFIG_INVALID'):raise RuntimeError('unexpected credential-free startup result')
     if edge.secret_names():raise RuntimeError('service-secret absence not confirmed')
-    print('PASS hosted packaged CGI health; fixed missing-signing-config failure; service secrets absent')
+    print('PASS hosted packaged CGI health; fixed nonfunctional route response; service secrets absent')
 
 if __name__=='__main__':
     try:main()

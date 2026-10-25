@@ -1,0 +1,33 @@
+name: Compare constant CGI on Edge
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_no_spend:
+        description: Verify free allowance for one credential-free diagnostic deployment
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-wasmer-poc
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.confirm_no_spend
+    environment: wasmer-poc
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: bash ci/install-wasix-go.sh
+      - run: bash ci/install-wasmer.sh
+      - name: Build constant CGI with same pinned compiler; inspect imports and assert guest
+        run: bash ci/build-constant.sh
+      - name: Deploy one credential-free candidate and inspect fixed startup codes
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: python3 ci/startup-probe.py constant
+      # No POC service credentials are passed, created, or restored.

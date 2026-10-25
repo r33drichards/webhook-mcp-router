@@ -1,7 +1,7 @@
 name: Actual SDK OPA WASIX service checks
 on:
   push:
-    paths: ['.github/workflows/wasix-service.yml', 'spike/hosted/**', 'ci/wasix-service-check.py', 'ci/events-cgi-check.py', 'ci/install-wasix-go.sh']
+    paths: ['.github/workflows/wasix-service.yml', 'spike/hosted/**', 'ci/wasix-service-check.py', 'ci/events-cgi-check.py', 'ci/install-wasix-go.sh', 'spike/constant-cgi/**', 'ci/build-constant.sh', 'ci/startup-guest-check.py']
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,3 +28,7 @@ jobs:
           GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" test -mod=readonly -c -o "$RUNNER_TEMP/hosted-tests.wasm" .
       - name: Actual Wasmer guest network and service regression checks
         run: python3 ci/wasix-service-check.py "$RUNNER_TEMP/hosted.wasm" "$RUNNER_TEMP/hosted-tests.wasm"
+      - name: Record integrated module imports and entry exports
+        run: wasmer inspect "$RUNNER_TEMP/hosted.wasm"
+      - name: Same-compiler constant CGI comparison in local Wasmer
+        run: bash ci/build-constant.sh
