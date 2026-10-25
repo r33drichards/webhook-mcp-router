@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -52,6 +53,32 @@ func run() error {
 	cfg := &tls.Config{RootCAs: roots, ServerName: "localhost", MinVersion: tls.VersionTLS12}
 	if mode == "wrong-name" {
 		cfg.ServerName = "wrong.invalid"
+	}
+	if mode == "https-sync-diagnostic" {
+		// Diagnostic only: standard request serialization over a verified TLS conn.
+		// This is not installed as an application RoundTripper/adapter.
+		c, err := tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", addr, cfg)
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+		c.SetDeadline(time.Now().Add(5 * time.Second))
+		req, _ := http.NewRequest("POST", "https://"+addr+"/synthetic", strings.NewReader("synthetic-nonce"))
+		req.Close = true
+		if err = req.Write(c); err != nil {
+			return err
+		}
+		resp, err := http.ReadResponse(bufio.NewReader(c), req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 128))
+		if err != nil || resp.StatusCode != 200 || string(body) != "synthetic-nonce" {
+			return errors.New("synchronous HTTP diagnostic mismatch")
+		}
+		fmt.Println("PASS https-sync-diagnostic")
+		return nil
 	}
 	if mode != "https" {
 		c, e := tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", addr, cfg)
