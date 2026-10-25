@@ -1,0 +1,1 @@
+{"event":{"provider":"github","type":"pull_request","body":{"action":"opened","repository":{"full_name":"synthetic/demo"}}},"subscriptions":[{"id":"sub_match","repository":"synthetic/demo"},{"id":"sub_other","repository":"synthetic/other"}]}

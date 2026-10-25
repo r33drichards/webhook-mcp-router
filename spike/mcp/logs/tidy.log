@@ -1,0 +1,13 @@
+go: downloading github.com/google/jsonschema-go v0.4.3
+go: downloading github.com/yosida95/uritemplate/v3 v3.0.2
+go: downloading golang.org/x/oauth2 v0.35.0
+go: downloading golang.org/x/sync v0.20.0
+go: downloading golang.org/x/time v0.15.0
+go: downloading github.com/google/go-cmp v0.7.0
+go: downloading golang.org/x/tools v0.42.0
+go: downloading github.com/segmentio/encoding v0.5.4
+go: downloading github.com/golang-jwt/jwt/v5 v5.3.1
+go: example.invalid/webhook-router/mcp-spike imports
+	github.com/modelcontextprotocol/go-sdk/mcp imports
+	github.com/modelcontextprotocol/go-sdk/internal/json imports
+	github.com/segmentio/encoding/json: github.com/segmentio/encoding@v0.5.4: Get "https://storage.googleapis.com/proxy-golang-org-prod/9ee04aa9d882e669-github.com:segmentio:encoding-v0.5.4.zip?[signed-query-redacted]": Forbidden

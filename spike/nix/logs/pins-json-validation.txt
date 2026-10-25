@@ -1,0 +1,12 @@
+{
+    "nixpkgs": {
+        "url": "https://github.com/NixOS/nixpkgs.git",
+        "rev": "3ec636362e1816bc2f0888fa0fa2c69f1bc9e504"
+    },
+    "goMcpSdkResearchRevision": "2e00768cde3f1ba31d898ea1f179e206d1ad27ef",
+    "opaRouterModuleVersion": "v1.9.0",
+    "wasmer": {
+        "version": "7.5.0",
+        "linuxAmd64ArchiveSha256": "23f99818deaad93859f8bb8292af81f0c39f25aea19eaccfb72fc7c9e8a3fae9"
+    }
+}

@@ -1,0 +1,131 @@
+[
+  {
+    "command": [
+      ".tools/wasmer/bin/wasmer",
+      "--version"
+    ],
+    "stdin": null,
+    "exit_code": 0,
+    "stdout": "wasmer 7.5.0\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      ".tools/opa",
+      "version"
+    ],
+    "stdin": null,
+    "exit_code": 0,
+    "stdout": "Version: 1.9.0\nBuild Commit: c49e670294e45bb3fd76b9e945cf821478a4bbfc\nBuild Timestamp: 2025-09-26T08:53:51Z\nBuild Hostname: \nGo Version: go1.25.1\nPlatform: linux/amd64\nRego Version: v1\nWebAssembly: unavailable\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      ".tools/opa",
+      "build",
+      "--capabilities",
+      "policies/capabilities.json",
+      "-t",
+      "wasm",
+      "-e",
+      "router/subscription_ids",
+      "-o",
+      "spike/router/policy.tar.gz",
+      "policies/routes.rego"
+    ],
+    "stdin": null,
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "tar",
+      "-xzf",
+      "spike/router/policy.tar.gz",
+      "-C",
+      "spike/router"
+    ],
+    "stdin": null,
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "tar: Removing leading `/' from member names\n"
+  },
+  {
+    "command": [
+      "cc",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I.tools/wasmer/include",
+      "spike/router/wasmer_opa_host.c",
+      "-L.tools/wasmer/lib",
+      "-lwasmer",
+      "-Wl,-rpath,/workspace/webhook-mcp-router/.tools/wasmer/lib",
+      "-o",
+      "spike/router/wasmer-opa-host"
+    ],
+    "stdin": null,
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "spike/router/wasmer-opa-host",
+      "spike/router/policy.wasm"
+    ],
+    "stdin": "{\"event\":{\"provider\":\"github\",\"type\":\"pull_request\",\"body\":{\"action\":\"opened\",\"repository\":{\"full_name\":\"synthetic/demo\"}}},\"subscriptions\":[{\"id\":\"sub_match\",\"repository\":\"synthetic/demo\"},{\"id\":\"sub_other\",\"repository\":\"synthetic/other\"}]}",
+    "exit_code": 0,
+    "stdout": "[{\"result\":[\"sub_match\"]}]\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      ".tools/opa",
+      "eval",
+      "--stdin-input",
+      "--data",
+      "policies/routes.rego",
+      "data.router.subscription_ids"
+    ],
+    "stdin": "{\"event\":{\"provider\":\"github\",\"type\":\"pull_request\",\"body\":{\"action\":\"opened\",\"repository\":{\"full_name\":\"synthetic/demo\"}}},\"subscriptions\":[{\"id\":\"sub_match\",\"repository\":\"synthetic/demo\"},{\"id\":\"sub_other\",\"repository\":\"synthetic/other\"}]}",
+    "exit_code": 0,
+    "stdout": "{\n  \"result\": [\n    {\n      \"expressions\": [\n        {\n          \"value\": [\n            \"sub_match\"\n          ],\n          \"text\": \"data.router.subscription_ids\",\n          \"location\": {\n            \"row\": 1,\n            \"col\": 1\n          }\n        }\n      ]\n    }\n  ]\n}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "spike/router/wasmer-opa-host",
+      "spike/router/policy.wasm"
+    ],
+    "stdin": "{\"event\": {\"provider\": \"github\", \"type\": \"pull_request\", \"body\": {\"action\": \"closed\", \"repository\": {\"full_name\": \"synthetic/demo\"}}}, \"subscriptions\": [{\"id\": \"sub_match\", \"repository\": \"synthetic/demo\"}, {\"id\": \"sub_other\", \"repository\": \"synthetic/other\"}]}",
+    "exit_code": 0,
+    "stdout": "[{\"result\":[]}]\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      ".tools/opa",
+      "eval",
+      "--stdin-input",
+      "--data",
+      "policies/routes.rego",
+      "data.router.subscription_ids"
+    ],
+    "stdin": "{\"event\": {\"provider\": \"github\", \"type\": \"pull_request\", \"body\": {\"action\": \"closed\", \"repository\": {\"full_name\": \"synthetic/demo\"}}}, \"subscriptions\": [{\"id\": \"sub_match\", \"repository\": \"synthetic/demo\"}, {\"id\": \"sub_other\", \"repository\": \"synthetic/other\"}]}",
+    "exit_code": 0,
+    "stdout": "{\n  \"result\": [\n    {\n      \"expressions\": [\n        {\n          \"value\": [],\n          \"text\": \"data.router.subscription_ids\",\n          \"location\": {\n            \"row\": 1,\n            \"col\": 1\n          }\n        }\n      ]\n    }\n  ]\n}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "spike/router/wasmer-opa-host",
+      "spike/router/policy.wasm"
+    ],
+    "stdin": "not-json",
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "invalid JSON\n"
+  }
+]

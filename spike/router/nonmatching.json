@@ -1,0 +1,1 @@
+{"event":{"type":"pull_request","action":"closed","repository":"synthetic/demo"},"subscriptions":[{"id":"sub_match","repository":"synthetic/demo"}]}

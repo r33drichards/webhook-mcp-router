@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+    "run",
+    "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+    "--",
+    "exec"
+  ],
+  "exit_code": 43,
+  "stdout": "EXEC_RESULT: output=\"\" error=pipe: Not implemented on wasip1\n",
+  "stderr": ""
+}

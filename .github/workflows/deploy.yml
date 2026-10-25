@@ -1,0 +1,49 @@
+name: Manual synthetic Wasmer POC
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_no_spend:
+        description: Account quotas and GitHub minutes reviewed; no paid resources approved
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-wasmer-poc
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.confirm_no_spend
+    environment: wasmer-poc
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Fail closed on unfinished hosted implementation
+        run: python3 ci/deployment-gate.py
+      - name: Install pinned Wasmer
+        run: bash ci/install-wasmer.sh
+      - name: Build reviewed Nix release
+        run: |
+          # Gate requires a reviewed pinned Nix bootstrap/build script.
+          bash ci/build-hosted.sh
+          wasmer validate deploy/server.wasm
+      - name: Deploy one reviewed synthetic application
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$WASMER_TOKEN"
+          wasmer whoami >/dev/null
+          wasmer deploy --dir deploy --non-interactive --publish-package --no-persist-id
+      - name: Assert actual hosted MCP and signed receipt
+        env:
+          POC_MCP_URL: ${{ vars.POC_MCP_URL }}
+          POC_RECEIPTS_URL: ${{ vars.POC_RECEIPTS_URL }}
+          POC_TEST_TOKEN: ${{ secrets.POC_TEST_TOKEN }}
+          POC_RECEIPT_TOKEN: ${{ secrets.POC_RECEIPT_TOKEN }}
+        run: python3 ci/hosted-e2e.py
+      # Do not upload app env, credentials, raw receipts, or deployment output.

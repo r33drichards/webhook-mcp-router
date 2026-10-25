@@ -1,0 +1,2 @@
+main.go:11:2: missing go.sum entry for module providing package github.com/open-policy-agent/opa/v1/rego (imported by example.invalid/webhook-router-spike); to add:
+	go get example.invalid/webhook-router-spike

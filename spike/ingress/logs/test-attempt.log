@@ -1,0 +1,3 @@
+go: cannot find main module, but found .git/config in /workspace/webhook-mcp-router
+	to create a module there, run:
+	go mod init

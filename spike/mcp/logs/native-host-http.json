@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/spike/mcp/probe-native",
+    "serve"
+  ],
+  "ready": "LISTENER_READY: 127.0.0.1:18089",
+  "host_request": {
+    "status": 200,
+    "body": "synthetic-ok"
+  },
+  "exit_code": 0,
+  "stderr": ""
+}

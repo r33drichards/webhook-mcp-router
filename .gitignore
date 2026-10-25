@@ -1,0 +1,18 @@
+.tools/
+__pycache__/
+*.sqlite*
+.runtime/
+spike/router/wasmer-opa-host
+spike/router/router-native
+spike/router/*.wasm
+spike/router/policy.tar.gz
+spike/router/data.json
+spike/router/.manifest
+spike/router/policies/
+
+spike/mcp/probe-native
+spike/mcp/probe.wasm
+spike/mcp/state/
+spike/wcgi/*.wasm
+# Upstream's stale vendor snapshot predates OPA/SDK additions; resolve verified modules in CI.
+spike/ingress/source/vendor/

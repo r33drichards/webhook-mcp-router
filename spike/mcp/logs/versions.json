@@ -1,0 +1,24 @@
+[
+  {
+    "command": [
+      "/workspace/webhook-mcp-router/.tools/go/bin/go",
+      "version"
+    ],
+    "exit_code": 0,
+    "stdout": "go version go1.27.3 linux/amd64\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+      "--version"
+    ],
+    "exit_code": 0,
+    "stdout": "wasmer 7.5.0\n",
+    "stderr": ""
+  },
+  {
+    "artifact": "probe.wasm",
+    "sha256": "f0a5e1ea241e9b00e944746972aa9137deff17a678673e85e42ec6a8eac09ca1"
+  }
+]

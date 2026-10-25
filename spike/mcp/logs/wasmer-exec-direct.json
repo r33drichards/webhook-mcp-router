@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+    "run",
+    "--volume",
+    "/workspace/webhook-mcp-router/spike/mcp/state:/state",
+    "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+    "--",
+    "exec-direct"
+  ],
+  "exit_code": 43,
+  "stdout": "EXEC_DIRECT_RESULT: fork/exec /state/router.wasm: Not implemented on wasip1\n",
+  "stderr": ""
+}

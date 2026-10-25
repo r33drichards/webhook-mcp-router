@@ -1,0 +1,31 @@
+go: downloading github.com/coreos/go-systemd/v22 v22.5.0
+go: downloading github.com/fsnotify/fsnotify v1.7.0
+go: downloading github.com/go-chi/chi/v5 v5.0.12
+go: downloading github.com/open-policy-agent/opa v1.9.0
+go: downloading github.com/gorilla/mux v1.8.1
+go: downloading github.com/clbanning/mxj/v2 v2.7.0
+go: downloading github.com/ghodss/yaml v1.0.0
+go: downloading github.com/dustin/go-humanize v1.0.1
+go: downloading github.com/gofrs/uuid/v5 v5.0.0
+# github.com/adnanh/webhook
+internal/hook/request.go:11:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+internal/hook/hook.go:29:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+internal/middleware/logger.go:10:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+internal/middleware/logger.go:11:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+internal/middleware/request_id.go:10:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+platform_unix.go:9:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+webhook.go:22:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+webhook.go:24:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+router_inprocess.go:16:2: module lookup disabled by GOPROXY=off
+# github.com/adnanh/webhook
+router_inprocess.go:17:2: module lookup disabled by GOPROXY=off
+FAIL	github.com/adnanh/webhook [setup failed]
+FAIL

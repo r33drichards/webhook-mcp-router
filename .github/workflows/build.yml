@@ -1,0 +1,62 @@
+name: Build and synthetic checks
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted-sdk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: https://proxy.golang.org
+      GOSUMDB: sum.golang.org
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Official SDK synthetic fixture tests and WASI build
+        working-directory: spike/hosted
+        run: |
+          go mod tidy
+          go mod verify
+          go test ./...
+          GOOS=wasip1 GOARCH=wasm go build -trimpath -o /tmp/hosted.wasm .
+      - name: Install pinned Wasmer
+        run: bash ci/install-wasmer.sh
+      - name: Run official SDK CGI guest across fresh instances
+        run: python3 ci/sdk-cgi-check.py /tmp/hosted.wasm
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: https://proxy.golang.org
+      GOSUMDB: sum.golang.org
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified official source
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5, verified official source
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Install pinned Wasmer (no account required)
+        run: bash ci/install-wasmer.sh
+      - name: Assert generic Go CGI guest behavior
+        run: python3 ci/cgi-check.py
+      - name: Resolve and test actual combined fork dependencies
+        working-directory: spike/ingress/source
+        run: |
+          go mod tidy
+          go mod verify
+          go test -mod=mod ./...
+          GOOS=wasip1 GOARCH=wasm go build -mod=mod -trimpath -o /tmp/combined-probe.wasm .
+      # Discovery lane: tidy may expose missing module sums. Review/commit them
+      # before release; deployment requires readonly modules and Nix vendorHash.

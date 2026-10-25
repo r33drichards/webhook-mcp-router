@@ -1,0 +1,46 @@
+[
+  {
+    "command": [
+      "/workspace/webhook-mcp-router/.tools/go/bin/go",
+      "build",
+      "-o",
+      "spike/wcgi/cgi.wasm",
+      "spike/wcgi/main.go"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+      "run",
+      "spike/wcgi/cgi.wasm",
+      "--env",
+      "REQUEST_METHOD=POST",
+      "--env",
+      "SERVER_PROTOCOL=HTTP/1.1",
+      "--env",
+      "GATEWAY_INTERFACE=CGI/1.1",
+      "--env",
+      "SERVER_NAME=localhost",
+      "--env",
+      "SERVER_PORT=80",
+      "--env",
+      "REQUEST_URI=/synthetic",
+      "--env",
+      "SCRIPT_NAME=/synthetic",
+      "--env",
+      "CONTENT_TYPE=application/json",
+      "--env",
+      "CONTENT_LENGTH=19",
+      "--env",
+      "HTTP_X_SYNTHETIC=fixture-only"
+    ],
+    "stdin": "{\"synthetic\":true}\n",
+    "exit_code": 0,
+    "stdout": "Status: 200 OK\nContent-Type: application/json\n\n{\"body\":\"{\\\"synthetic\\\":true}\\n\",\"method\":\"POST\",\"path\":\"/synthetic\",\"synthetic_header\":\"fixture-only\"}\n",
+    "stderr": "",
+    "assertions": "PASS exact method/path/raw body/header; manual CGI environment, no HTTP runner"
+  }
+]

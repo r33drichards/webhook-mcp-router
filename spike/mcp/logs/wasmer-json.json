@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+    "run",
+    "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+    "--",
+    "json"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"received\":{\"action\":\"opened\",\"repository\":\"synthetic/demo\"},\"runtime\":\"go-wasip1\"}\n",
+  "stderr": ""
+}

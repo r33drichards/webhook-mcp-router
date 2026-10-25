@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+    "run",
+    "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+    "--",
+    "http"
+  ],
+  "exit_code": 0,
+  "stdout": "HTTP_LOOPBACK_PASS: synthetic-ok\n",
+  "stderr": ""
+}

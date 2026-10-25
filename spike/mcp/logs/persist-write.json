@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+    "run",
+    "--volume",
+    "/workspace/webhook-mcp-router/spike/mcp/state:/state",
+    "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+    "--",
+    "persist-write"
+  ],
+  "exit_code": 0,
+  "stdout": "PERSIST_WRITE_PASS\n",
+  "stderr": ""
+}

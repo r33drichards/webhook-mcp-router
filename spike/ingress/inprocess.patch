@@ -1,0 +1,359 @@
+--- a/go.mod
++++ b/go.mod
+@@ -1,10 +1,12 @@
+ module github.com/adnanh/webhook
+ 
+-go 1.21
++go 1.24.6
+ 
+-toolchain go1.22.0
++toolchain go1.27.3
+ 
+ require (
++	github.com/modelcontextprotocol/go-sdk v1.8.1-0.20261023154812-2e00768cde3f
++	github.com/open-policy-agent/opa v1.9.0
+ 	github.com/Microsoft/go-winio v0.6.2
+ 	github.com/clbanning/mxj/v2 v2.7.0
+ 	github.com/coreos/go-systemd/v22 v22.5.0
+--- a/webhook.go
++++ b/webhook.go
+@@ -285,6 +285,9 @@
+ 		fmt.Fprint(w, "OK")
+ 	})
+ 
++	if *syntheticMCP {
++		r.Handle("/mcp", syntheticMCPHandler(&syntheticRegistry))
++	}
+ 	r.HandleFunc(hooksURL, hookHandler)
+ 
+ 	// Create common HTTP server settings
+@@ -328,6 +331,12 @@
+ 	if matchedHook == nil {
+ 		w.WriteHeader(http.StatusNotFound)
+ 		fmt.Fprint(w, "Hook not found.")
++		return
++	}
++
++	// Local synthetic-only in-process routing experiment. No subprocess or delivery.
++	if id == "synthetic-router" {
++		serveSyntheticRouter(w, r)
+ 		return
+ 	}
+ 
+--- /dev/null
++++ b/router_inprocess.go
+@@ -0,0 +1,164 @@
++package main
++
++// Synthetic-only experiment: it cannot deliver externally or load production keys.
++import (
++	"context"
++	"crypto/hmac"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"fmt"
++	"io"
++	"net/http"
++	"sync"
++	"time"
++
++	"github.com/open-policy-agent/opa/v1/ast"
++	"github.com/open-policy-agent/opa/v1/rego"
++)
++
++const syntheticKey = "public-synthetic-test-key-not-for-production"
++const maxRouterBody = 65536
++
++type routePolicy struct{ ID, Rego string }
++type routeRecord struct {
++	SubscriptionID string `json:"subscription_id"`
++	Data           any    `json:"data"`
++}
++type policyOutcome struct {
++	Policy string        `json:"policy"`
++	Routes []routeRecord `json:"routes"`
++	Error  string        `json:"error,omitempty"`
++}
++type routeRegistry struct {
++	sync.RWMutex
++	policies      []routePolicy
++	subscriptions map[string]bool
++}
++
++var syntheticRegistry = routeRegistry{
++	policies: []routePolicy{{"opened", `package router
++import rego.v1
++routes := [{"subscription_id":"sub_demo","data":{"action":input.action}}] if input.action == "opened"
++else := []`}}, subscriptions: map[string]bool{"sub_demo": true},
++}
++
++// replace snapshots configuration. No network management endpoint is exposed.
++func (r *routeRegistry) replace(policies []routePolicy, subscriptions map[string]bool) error {
++	if len(policies) > 16 || len(subscriptions) > 100 {
++		return fmt.Errorf("registry_limit")
++	}
++	ps := append([]routePolicy(nil), policies...)
++	for _, p := range ps {
++		if len(p.Rego) > 32768 || len(p.ID) > 64 {
++			return fmt.Errorf("policy_limit")
++		}
++	}
++	subs := map[string]bool{}
++	for id, active := range subscriptions {
++		subs[id] = active
++	}
++	r.Lock()
++	defer r.Unlock()
++	r.policies = ps
++	r.subscriptions = subs
++	return nil
++}
++func (r *routeRegistry) snapshot() ([]routePolicy, map[string]bool) {
++	r.RLock()
++	defer r.RUnlock()
++	ps := append([]routePolicy(nil), r.policies...)
++	subs := map[string]bool{}
++	for id, active := range r.subscriptions {
++		subs[id] = active
++	}
++	return ps, subs
++}
++func pureCapabilities() *ast.Capabilities {
++	c := ast.CapabilitiesForThisVersion()
++	allowed := map[string]bool{"eq": true, "neq": true, "equal": true, "assign": true, "count": true, "concat": true, "contains": true, "startswith": true, "endswith": true, "lower": true, "upper": true, "object.get": true, "is_string": true, "is_array": true, "is_object": true, "is_number": true, "sort": true}
++	bs := c.Builtins[:0]
++	for _, b := range c.Builtins {
++		if allowed[b.Name] {
++			bs = append(bs, b)
++		}
++	}
++	c.Builtins = bs
++	c.AllowNet = []string{}
++	return c
++}
++func evaluatePolicy(ctx context.Context, p routePolicy, input any, subs map[string]bool) (out policyOutcome) {
++	out.Policy = p.ID
++	out.Routes = []routeRecord{}
++	// An evaluator panic must not prevent the following policy from being evaluated.
++	defer func() {
++		if recover() != nil {
++			out.Routes = []routeRecord{}
++			out.Error = "policy_failed"
++		}
++	}()
++	bounded, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
++	defer cancel()
++	rs, err := rego.New(rego.Query("data.router.routes"), rego.Module("route.rego", p.Rego), rego.Capabilities(pureCapabilities()), rego.Input(input)).Eval(bounded)
++	if err != nil || len(rs) != 1 || len(rs[0].Expressions) != 1 {
++		out.Error = "policy_failed"
++		return
++	}
++	b, err := json.Marshal(rs[0].Expressions[0].Value)
++	if err != nil || len(b) > 16384 {
++		out.Error = "decision_limit"
++		return
++	}
++	var routes []routeRecord
++	if json.Unmarshal(b, &routes) != nil || len(routes) > 100 {
++		out.Error = "decision_invalid"
++		return
++	}
++	seen := map[string]bool{}
++	for _, route := range routes {
++		if !subs[route.SubscriptionID] || seen[route.SubscriptionID] {
++			out.Error = "subscription_invalid"
++			return
++		}
++		seen[route.SubscriptionID] = true
++	}
++	out.Routes = routes
++	return
++}
++func evaluateSnapshot(ctx context.Context, r registrationReader, input any) []policyOutcome {
++	ps, subs := r.snapshot()
++	out := make([]policyOutcome, 0, len(ps))
++	for _, p := range ps {
++		out = append(out, evaluatePolicy(ctx, p, input, subs))
++	}
++	return out
++}
++func serveSyntheticRouter(w http.ResponseWriter, r *http.Request) {
++	if r.Method != "POST" {
++		http.Error(w, "method_invalid", 405)
++		return
++	}
++	raw, err := io.ReadAll(io.LimitReader(r.Body, maxRouterBody+1))
++	if err != nil || len(raw) > maxRouterBody {
++		http.Error(w, "body_limit", 413)
++		return
++	}
++	mac := hmac.New(sha256.New, []byte(syntheticKey))
++	mac.Write(raw)
++	expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
++	if !hmac.Equal([]byte(expected), []byte(r.Header.Get("X-Hub-Signature-256"))) {
++		http.Error(w, "signature_invalid", 401)
++		return
++	}
++	var input map[string]any
++	if json.Unmarshal(raw, &input) != nil || input == nil {
++		http.Error(w, "json_invalid", 400)
++		return
++	}
++	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
++	defer cancel()
++	results := evaluateSnapshot(ctx, &syntheticRegistry, input)
++	// The only sink is the response to the local synthetic caller; no HTTP sender exists.
++	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(map[string]any{"mode": "synthetic-dry-run", "policies": results})
++}
+--- /dev/null
++++ b/router_inprocess_test.go
+@@ -0,0 +1,35 @@
++package main
++
++import (
++	"context"
++	"net/http/httptest"
++	"strings"
++	"testing"
++)
++
++func TestPolicyIsolationAndRegisteredIDs(t *testing.T) {
++	r := &routeRegistry{}
++	err := r.replace([]routePolicy{
++		{"bad", `package router
++routes := syntax error`},
++		{"good", `package router
++routes := [{"subscription_id":"sub_ok","data":{"selected":"value"}}]`},
++		{"unknown", `package router
++routes := [{"subscription_id":"https://example.invalid/","data":{}}]`},
++	}, map[string]bool{"sub_ok": true})
++	if err != nil {
++		t.Fatal(err)
++	}
++	out := evaluateSnapshot(context.Background(), r, map[string]any{})
++	if len(out) != 3 || out[0].Error == "" || out[1].Error != "" || len(out[1].Routes) != 1 || out[1].Routes[0].SubscriptionID != "sub_ok" || out[2].Error != "subscription_invalid" {
++		t.Fatalf("unexpected outcomes: %+v", out)
++	}
++}
++func TestSignatureBeforeJSON(t *testing.T) {
++	req := httptest.NewRequest("POST", "http://localhost/hooks/synthetic-router", strings.NewReader("not-json"))
++	w := httptest.NewRecorder()
++	serveSyntheticRouter(w, req)
++	if w.Code != 401 {
++		t.Fatalf("want signature rejection before parse, got %d", w.Code)
++	}
++}
+--- /dev/null
++++ b/router_mcp.go
+@@ -0,0 +1,105 @@
++package main
++
++// Same-process, opt-in synthetic management surface; no production auth or DB.
++import (
++	"context"
++	"flag"
++	"fmt"
++	"net"
++	"net/http"
++	"regexp"
++
++	"github.com/modelcontextprotocol/go-sdk/mcp"
++)
++
++var syntheticMCP = flag.Bool("synthetic-router-mcp", false, "enable loopback-only synthetic /mcp management (no durable DB or live delivery)")
++var syntheticID = regexp.MustCompile(`^sub_[a-z0-9_-]{1,64}$`)
++
++// Interfaces separate the receiver's read view from MCP's write capability.
++// They are logical application boundaries, not database permissions.
++type registrationReader interface {
++	snapshot() ([]routePolicy, map[string]bool)
++}
++type registrationWriter struct{ registry *routeRegistry }
++
++func (w registrationWriter) addSubscription(id string) error {
++	if !syntheticID.MatchString(id) {
++		return fmt.Errorf("subscription_id_invalid")
++	}
++	w.registry.Lock()
++	defer w.registry.Unlock()
++	if len(w.registry.subscriptions) >= 100 && !w.registry.subscriptions[id] {
++		return fmt.Errorf("subscription_limit")
++	}
++	w.registry.subscriptions[id] = true
++	return nil
++}
++
++type subscriptionInput struct {
++	ID string `json:"id" jsonschema:"Synthetic registered subscription ID, starting sub_"`
++}
++type emptyInput struct{}
++type subscriptionOutput struct {
++	ID     string `json:"id"`
++	Status string `json:"status"`
++}
++type listOutput struct {
++	IDs  []string `json:"ids"`
++	Mode string   `json:"mode"`
++}
++type eventListParams struct{ mcp.ParamsBase }
++type eventListResult struct {
++	mcp.ResultBase
++	Events []map[string]any `json:"events"`
++}
++type disabledEventParams struct{ mcp.ParamsBase }
++type disabledEventResult struct{ mcp.ResultBase }
++
++func syntheticMCPHandler(registry *routeRegistry) http.Handler {
++	server := mcp.NewServer(&mcp.Implementation{Name: "synthetic-webhook-router", Version: "0.0.0-spike"}, nil)
++	writer := registrationWriter{registry}
++	mcp.AddTool(server, &mcp.Tool{Name: "synthetic_subscription_create", Description: "Register an ID for local dry-run routing only; never creates or verifies a live callback."},
++		func(ctx context.Context, req *mcp.CallToolRequest, in subscriptionInput) (*mcp.CallToolResult, subscriptionOutput, error) {
++			err := writer.addSubscription(in.ID)
++			return nil, subscriptionOutput{ID: in.ID, Status: "dry_run"}, err
++		})
++	mcp.AddTool(server, &mcp.Tool{Name: "synthetic_subscription_list", Description: "Read process-local synthetic IDs. State is not durable."},
++		func(ctx context.Context, req *mcp.CallToolRequest, in emptyInput) (*mcp.CallToolResult, listOutput, error) {
++			_, subs := registry.snapshot()
++			ids := []string{}
++			for id, active := range subs {
++				if active {
++					ids = append(ids, id)
++				}
++			}
++			return nil, listOutput{IDs: ids, Mode: "synthetic-dry-run"}, nil
++		})
++	// Event catalog shape follows inspected WeeChat source. Top-level Events
++	// discovery and live callback lifecycle remain deliberately unimplemented.
++	if err := mcp.AddReceivingCustomMethod(server, "events/list", func(ctx context.Context, session *mcp.ServerSession, in *eventListParams) (*eventListResult, error) {
++		return &eventListResult{Events: []map[string]any{{"name": "webhook.received", "delivery": []string{"webhook"}, "inputSchema": map[string]any{"type": "object"}, "payloadSchema": map[string]any{"type": "object"}}}}, nil
++	}); err != nil {
++		panic(err)
++	}
++	for _, name := range []string{"events/subscribe", "events/unsubscribe"} {
++		if err := mcp.AddReceivingCustomMethod(server, name, func(ctx context.Context, session *mcp.ServerSession, in *disabledEventParams) (*disabledEventResult, error) {
++			return nil, fmt.Errorf("live event subscription lifecycle disabled; use synthetic tools")
++		}); err != nil {
++			panic(err)
++		}
++	}
++	handler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		host, _, err := net.SplitHostPort(r.RemoteAddr)
++		if err != nil || !net.ParseIP(host).IsLoopback() || r.Header.Get("Origin") != "" {
++			http.Error(w, "synthetic_loopback_only", 403)
++			return
++		}
++		if r.Method != "POST" {
++			http.Error(w, "synthetic_post_only", 405)
++			return
++		}
++		r.Body = http.MaxBytesReader(w, r.Body, 65536)
++		handler.ServeHTTP(w, r)
++	})
++}
+--- /dev/null
++++ b/synthetic-hooks.json
+@@ -0,0 +1 @@
++[{"id":"synthetic-router","execute-command":"unused-in-process","http-methods":["POST"]}]

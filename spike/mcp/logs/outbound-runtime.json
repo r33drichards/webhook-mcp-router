@@ -1,0 +1,99 @@
+{
+  "environment": {
+    "GOTOOLCHAIN": "local",
+    "GOPATH": "/workspace/webhook-mcp-router/.tools/gopath",
+    "GOMODCACHE": "/workspace/webhook-mcp-router/.tools/gomodcache",
+    "GOCACHE": "/workspace/webhook-mcp-router/.tools/gocache",
+    "WASMER_DIR": "/workspace/webhook-mcp-router/.tools/wasmer"
+  },
+  "records": [
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/.tools/go/bin/go",
+        "build",
+        "-o",
+        "probe-native",
+        "./probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/.tools/go/bin/go",
+        "build",
+        "-o",
+        "probe.wasm",
+        "./probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/spike/mcp/probe-native",
+        "outbound-http",
+        "127.0.0.1:37533"
+      ],
+      "exit_code": 0,
+      "stdout": "OUTBOUND_HTTP_PASS: synthetic-host-http\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+        "run",
+        "--net=ipv4:allow=127.0.0.1:37533/out",
+        "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+        "--",
+        "outbound-http",
+        "127.0.0.1:37533"
+      ],
+      "exit_code": 45,
+      "stdout": "OUTBOUND_HTTP_FAILED: Get \"http://127.0.0.1:37533/synthetic\": dial tcp 127.0.0.1:37533: address 127.0.0.1:37533: connect: Connection refused\n",
+      "stderr": ""
+    },
+    {
+      "mode": "outbound-http",
+      "native_host_requests": 1,
+      "host_requests_after_guest": 1,
+      "assertions": "native passed; guest failed; guest made no host connection"
+    },
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/spike/mcp/probe-native",
+        "outbound-tcp",
+        "127.0.0.1:47631"
+      ],
+      "exit_code": 0,
+      "stdout": "OUTBOUND_TCP_PASS: synthetic-host-tcp\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/workspace/webhook-mcp-router/.tools/wasmer/bin/wasmer",
+        "run",
+        "--net=ipv4:allow=127.0.0.1:47631/out",
+        "/workspace/webhook-mcp-router/spike/mcp/probe.wasm",
+        "--",
+        "outbound-tcp",
+        "127.0.0.1:47631"
+      ],
+      "exit_code": 47,
+      "stdout": "OUTBOUND_TCP_FAILED: dial tcp 127.0.0.1:47631: address 127.0.0.1:47631: connect: Connection refused\n",
+      "stderr": ""
+    },
+    {
+      "mode": "outbound-tcp",
+      "native_host_requests": 1,
+      "host_requests_after_guest": 1,
+      "assertions": "native passed; guest failed; guest made no host connection"
+    },
+    {
+      "artifact": "probe.wasm",
+      "sha256": "f0a5e1ea241e9b00e944746972aa9137deff17a678673e85e42ec6a8eac09ca1"
+    }
+  ]
+}
