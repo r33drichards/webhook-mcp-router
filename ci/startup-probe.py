@@ -21,12 +21,14 @@ def request(url):
             'runtime_ready':ready,'startup_code':code if isinstance(code,str) and code in allowed else None}
 
 def main():
-    constant=len(sys.argv)>1 and sys.argv[1]=='constant'
+    mode=sys.argv[1] if len(sys.argv)>1 else 'integrated'
+    if mode not in ('integrated','constant','stock'):raise RuntimeError('invalid probe mode')
+    constant=mode in ('constant','stock')
     if any(os.environ.get(n) for n in edge.NAMES):raise RuntimeError('service secrets must not be supplied')
     if edge.secret_names():raise RuntimeError('app must have no approved service-secret names')
     sha=os.environ['GITHUB_SHA']
     if len(sha)!=40 or any(c not in '0123456789abcdef' for c in sha):raise RuntimeError('invalid revision')
-    p=pathlib.Path('deploy/wasmer.toml');p.write_text(p.read_text().replace('version = "0.0.1"','version = "0.0.1-ci.'+sha[:12]+('.constant' if constant else '')+'"',1))
+    p=pathlib.Path('deploy/wasmer.toml');p.write_text(p.read_text().replace('version = "0.0.1"','version = "0.0.1-ci.'+sha[:12]+('.constant-stock' if mode=='stock' else '.constant' if constant else '')+'"',1))
     edge.cli('deploy','--dir','deploy','--non-interactive','--publish-package','--no-persist-id','--no-wait','--format=json')
     # Canonical endpoint only; no redirects or arbitrary callbacks.
     if edge.secret_names():raise RuntimeError('unexpected service-secret names')

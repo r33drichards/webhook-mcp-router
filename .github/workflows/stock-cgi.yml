@@ -1,0 +1,57 @@
+name: Compare stock Go constant CGI on Edge
+on:
+  push:
+    paths: ['.github/workflows/stock-cgi.yml', 'spike/constant-cgi/**', 'ci/build-constant.sh', 'ci/startup-guest-check.py', 'ci/startup-probe.py']
+  workflow_dispatch:
+    inputs:
+      confirm_no_spend:
+        description: Verify free allowance for one credential-free stock-Go comparison
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - run: bash ci/install-wasmer.sh
+      - name: Stock compiler identity, imports and actual guest responses
+        run: |
+          go version
+          export CGI_GO="$(command -v go)"
+          bash ci/build-constant.sh
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && inputs.confirm_no_spend
+    environment: wasmer-poc
+    concurrency:
+      group: synthetic-wasmer-poc
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - run: bash ci/install-wasmer.sh
+      - name: Rebuild and reassert exact stock candidate before writes
+        run: |
+          export CGI_GO="$(command -v go)"
+          bash ci/build-constant.sh
+      - name: Deploy same package with stock binary; no service credentials
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: python3 ci/startup-probe.py stock

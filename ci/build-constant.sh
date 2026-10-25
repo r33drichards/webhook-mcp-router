@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-: "${WASIX_GO:?run pinned WASIX Go installer}"
-GOTOOLCHAIN=local GO111MODULE=off GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$WASIX_GO" build -trimpath -o deploy/server.wasm spike/constant-cgi/main.go
+: "${CGI_GO:=${WASIX_GO:-}}"
+: "${CGI_GO:?set the pinned stock or WASIX Go compiler}"
+GOTOOLCHAIN=local GO111MODULE=off GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 "$CGI_GO" build -trimpath -o deploy/server.wasm spike/constant-cgi/main.go
 # Keep package filesystem and runner configuration identical to the service.
 mkdir -p deploy/certs
 cp /etc/ssl/certs/ca-certificates.crt deploy/certs/ca-certificates.crt
