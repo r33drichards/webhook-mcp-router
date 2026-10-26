@@ -1,0 +1,28 @@
+name: Disposable DbUp migration rehearsal
+on:
+  push:
+    branches: [ci/dbup-migration-rehearsal]
+  pull_request:
+    paths: ['tools/Router.Migrator/**', 'tests/dotnet/Router.MigratorChecks/**', 'ci/*sql-migration*', 'src/dotnet/Router.Storage/schema.sql', 'src/dotnet/Router.Storage/destination-schema.sql', '.github/workflows/router-dbup-rehearsal.yml']
+permissions:
+  contents: read
+jobs:
+  localdb:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.402'
+      - name: Compile migrator and execute disposable SQL rehearsal
+        shell: pwsh
+        run: |
+          python ci/test-sql-migration-workflow-paths.py
+          if ($LASTEXITCODE -ne 0) { throw 'Embedded schema trigger coverage failed' }
+          dotnet run --project tests/dotnet/Router.MigratorChecks -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'DbUp rehearsal failed' }
+          python ci/test-azure-sql-migration-window.py
+          if ($LASTEXITCODE -ne 0) { throw 'Offline network contract failed' }
