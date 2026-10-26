@@ -1,0 +1,58 @@
+name: Qualify real GitHub OIDC with disposable Keycloak
+on:
+  push:
+    branches: ['ci/keycloak-real-oidc-qualification']
+    paths:
+      - '.github/workflows/keycloak-real-oidc.yml'
+      - 'ci/keycloak-real-oidc.py'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: keycloak-real-oidc-qualification
+  cancel-in-progress: false
+jobs:
+  qualify:
+    if: github.repository == 'r33drichards/webhook-mcp-router' && github.ref == 'refs/heads/ci/keycloak-real-oidc-qualification'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install checksum-pinned Terraform and pull pinned Keycloak
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/router-terraform-tools"
+          curl --fail --silent --show-error --location --max-time 60 \
+            https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip \
+            -o "$RUNNER_TEMP/router-terraform-tools/terraform.zip"
+          printf '%s  %s\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d "$RUNNER_TEMP/router-terraform-tools/terraform.zip" | sha256sum --check --status
+          unzip -q "$RUNNER_TEMP/router-terraform-tools/terraform.zip" -d "$RUNNER_TEMP/router-terraform-tools"
+          echo "$RUNNER_TEMP/router-terraform-tools" >> "$GITHUB_PATH"
+          docker pull quay.io/keycloak/keycloak@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
+      - name: Real issuance, HTTPS JWKS, negative trust checks and Terraform
+        shell: bash
+        run: python3 ci/keycloak-real-oidc.py
+      - name: Cleanup on cancellation or script failure
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker rm -f router-federation-probe >/dev/null 2>&1 || true
+          if [ -d "$RUNNER_TEMP/router-real-oidc" ]; then
+            docker run --rm --network none --user 0:0 --entrypoint /bin/bash \
+              -v "$RUNNER_TEMP/router-real-oidc:/cleanup" \
+              quay.io/keycloak/keycloak@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b \
+              -c 'rm -rf /cleanup/data'
+            rm -rf -- "$RUNNER_TEMP/router-real-oidc"
+          fi
+          docker network rm router-federation-isolated >/dev/null 2>&1 || true
+          test ! -d "$RUNNER_TEMP/router-real-oidc"
+          if docker ps -a --format '{{.Names}}' | grep -Fxq router-federation-probe; then exit 1; fi
+          if docker network ls --format '{{.Name}}' | grep -Fxq router-federation-isolated; then exit 1; fi
+# No artifacts, secrets inputs, GitHub environment, cloud login or live trust.
+# Publishing this workflow on the named branch triggers the qualification run.
