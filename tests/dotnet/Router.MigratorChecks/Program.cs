@@ -2,6 +2,16 @@ using System.Diagnostics;
 using DbUp.Engine;
 using Microsoft.Data.SqlClient;
 using Router.Migrator;
+// No wall-clock delays or SQL calls in retry-policy qualification.
+if(!ConnectionWarmup.IsResumeOnly([40613]) || ConnectionWarmup.IsResumeOnly([]) || ConnectionWarmup.IsResumeOnly([40613,18456]) || ConnectionWarmup.IsResumeOnly([40615]))throw new Exception("RESUME_CLASSIFIER");
+foreach(var scenario in new[]{"success","resume","exhausted","other","cancelled"}) {
+ int attempts=0,waits=0;bool failed=false;
+ using var cancel=new CancellationTokenSource();if(scenario=="cancelled")cancel.Cancel();
+ try {await ConnectionWarmup.RetryAsync(ct=>{attempts++;if(scenario=="other")throw new ArgumentException("synthetic");if(scenario=="exhausted" || scenario=="resume" && attempts<3)throw new InvalidOperationException("synthetic");return Task.CompletedTask;},e=>e is InvalidOperationException,cancel.Token,(span,ct)=>{if(span!=TimeSpan.FromSeconds(10))throw new Exception("DELAY_POLICY");waits++;return Task.CompletedTask;});}
+ catch(Exception e) when(e is InvalidOperationException or ArgumentException or OperationCanceledException){failed=true;}
+ if(failed!=(scenario is "exhausted" or "other" or "cancelled") || attempts!=(scenario=="exhausted"?6:scenario=="resume"?3:scenario=="cancelled"?0:1) || waits!=(scenario=="exhausted"?5:scenario=="resume"?2:0))throw new Exception("BOUNDED_WARMUP_POLICY");
+}
+Console.WriteLine("PASS connection-only 40613 classifier, success/resume/exhaustion/nonretry/cancellation; no transaction replay");
 if(!OperatingSystem.IsWindows())throw new InvalidOperationException("ISOLATED_WINDOWS_LOCALDB_REQUIRED");
 string instance="RouterDbUp"+Guid.NewGuid().ToString("N")[..12];
 void LocalDb(string command){using var p=Process.Start(new ProcessStartInfo("SqlLocalDB",$"{command} {instance}"){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true})!;var o=p.StandardOutput.ReadToEndAsync();var e=p.StandardError.ReadToEndAsync();if(!p.WaitForExit(60000)){p.Kill(true);throw new Exception("LOCALDB_TIMEOUT");}Task.WaitAll(o,e);if(p.ExitCode!=0)throw new Exception("LOCALDB_OPERATION_FAILED");}

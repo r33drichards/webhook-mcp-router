@@ -26,7 +26,7 @@ with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1','SQL_
    try:m.operation('cleanup')
    except ValueError:failed=True
   assert failed==(scenario in ['patch_failed_closed','patch_failed_open','readback_denied'])
-  assert reads==(6 if scenario in ['patch_failed_open','readback_denied'] else 3 if scenario=='delayed' else 2 if scenario=='transient_get' else 1)
+  assert reads==(24 if scenario in ['patch_failed_open','readback_denied'] else 3 if scenario=='delayed' else 2 if scenario=='transient_get' else 1)
   assert sum(c[0]=='patch' for c in calls)==1
   assert all(c[2]['properties']['publicNetworkAccess']=='Disabled' for c in calls if c[0]=='patch')
   assert 'SECRET' not in output.getvalue()
@@ -67,3 +67,19 @@ with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1','SQL_
   assert observations==(6 if scenario=='never' else 3 if scenario=='delayed' else 1)
   assert 'unrelated' not in output.getvalue()
 print('PASS 5 bounded open-readback cases; foreign rules fail immediately; one PATCH only')
+
+# A real monotonic deadline bounds even a slow GET; it resets after failure.
+with patch.object(m.time,'monotonic',side_effect=[0,121]),patch.object(m,'rest') as request:
+ try:m.closed_readback()
+ except ValueError:pass
+ else:raise AssertionError('Elapsed deadline accepted')
+ request.assert_not_called();assert m.READBACK_DEADLINE is None
+# The connection retry wraps only opening connections, never Migration.Run.
+program=(root.parent/'tools/Router.Migrator/Program.cs').read_text()
+warmup=(root.parent/'tools/Router.Migrator/ConnectionWarmup.cs').read_text()
+assert program.count('Migration.Run(Connect,scripts)')==1
+assert program.index('stage="PRE_MIGRATION_CONNECT"') < program.index('stage="MIGRATION_TRANSACTION"')
+assert 'ConnectRetryCount=0' in program
+assert 'Migration.Run' not in warmup and 'OpenAsync(ct)' in warmup
+assert 'TimeSpan.FromMinutes(2)' in warmup and 'attempt<6' in warmup
+print('PASS elapsed readback deadline and no transaction-replay source boundary')

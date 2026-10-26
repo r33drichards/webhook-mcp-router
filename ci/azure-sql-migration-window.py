@@ -6,6 +6,7 @@ import ipaddress,json,os,re,subprocess,sys
 from pathlib import Path
 SERVER='/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2/providers/Microsoft.Sql/servers/sql-webhook-mcp-router-v2-f7076f8e38'
 STAGE='arguments'
+READBACK_DEADLINE=None
 class ArmFailure(ValueError):
  def __init__(self, stderr):
   allowed={'AuthorizationFailed','InvalidAuthenticationToken','ExpiredAuthenticationToken','InvalidRequestContent','BadRequest','ResourceNotFound','ConflictingServerOperation','OperationTimedOut','TooManyRequests'}
@@ -16,18 +17,23 @@ def diagnostic(error):
  category='ARM:'+error.code if isinstance(error,ArmFailure) else {FileNotFoundError:'CLI_NOT_FOUND',subprocess.TimeoutExpired:'CLI_TIMEOUT',ValueError:'CONTRACT_OR_FORMAT',KeyError:'RESPONSE_SHAPE'}.get(type(error),'OTHER')
  print('SQL_WINDOW_DIAGNOSTIC stage='+STAGE+' category='+category,file=sys.stderr)
 def closed_readback():
- global STAGE
+ global STAGE,READBACK_DEADLINE
  STAGE='close_readback'
- last=None
- for attempt in range(6):
-  try:
-   state=rest('get',SERVER)['properties']['publicNetworkAccess']
-   if state=='Disabled':
-    print('SQL_WINDOW_READBACK pna=Disabled',file=sys.stderr);return
-   last=ValueError('PNA_NOT_DISABLED')
-  except Exception as error:last=error
-  if attempt<5:time.sleep(2)
- raise last
+ READBACK_DEADLINE=time.monotonic()+120
+ last=ValueError('PNA_NOT_DISABLED')
+ try:
+  for attempt in range(24):
+   if time.monotonic()>=READBACK_DEADLINE:break
+   try:
+    state=rest('get',SERVER)['properties']['publicNetworkAccess']
+    print('SQL_WINDOW_CLOSE_READBACK pna='+('Disabled' if state=='Disabled' else 'Enabled' if state=='Enabled' else 'UNKNOWN'),file=sys.stderr)
+    if state=='Disabled':
+     print('SQL_WINDOW_READBACK pna=Disabled',file=sys.stderr);return
+    last=ValueError('PNA_NOT_DISABLED')
+   except Exception as error:last=error
+   if attempt<23:time.sleep(min(5,max(0,READBACK_DEADLINE-time.monotonic())))
+  raise last
+ finally:READBACK_DEADLINE=None
 
 def open_readback():
  global STAGE
@@ -52,7 +58,9 @@ def rest(method,path,body=None):
  if not executable:raise FileNotFoundError('AZURE_CLI_NOT_FOUND')
  args=[executable,'rest','--method',method,'--url','https://management.azure.com'+path+('?api-version=2023-08-01'),'--only-show-errors','--output','json']
  if body is not None:args+=['--body',json.dumps(body,separators=(',',':'))]
- result=subprocess.run(args,capture_output=True,text=True,timeout=120)
+ timeout=120 if READBACK_DEADLINE is None else READBACK_DEADLINE-time.monotonic()
+ if timeout<=0:raise TimeoutError('READBACK_DEADLINE')
+ result=subprocess.run(args,capture_output=True,text=True,timeout=timeout)
  if result.returncode!=0:raise ArmFailure(result.stderr)
  return json.loads(result.stdout) if result.stdout.strip() else {}
 def public_ip(value):
