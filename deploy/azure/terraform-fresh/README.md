@@ -8,7 +8,7 @@ The $10 total router monthly budget must cover both exact old and new RGs throug
 
 Terraform creates fresh resources, with deletion prevented. No import, shared-resource mutation or old-runtime cleanup is included. Initial app is disabled, public networking disabled, main/SCM default-deny. Private Blob package and system-assigned identity replace Azure Files/keys. runtime_ready gates creation until package and approved identity/secret-reference bootstrap are ready; it does not activate the app. Key Vault is proposed for runtime JSON references only; secret values never enter Terraform inputs. Exact grants and new vault costs need approval.
 
-Validation to date: Terraform init without backend, format/validate and synthetic fresh-plan guard fixtures only. No live new-resource plan/apply, actual SQL migration or hosted replacement acceptance has run.
+Validation to date: Terraform init without backend, format/validate and synthetic fresh-plan guard fixtures only. No live new-resource plan/apply or hosted replacement acceptance has run. Actual LocalDB migration and Functions-host qualification subsequently passed as recorded below.
 
 ## Vault ownership and network approval
 
@@ -20,9 +20,9 @@ The deployment principal cannot manage vault security or directly read secret va
 
 Local .NET SDK 10.0.402 does exist at `.tools/dotnet/dotnet` (it was not on PATH). Core Tools directory is empty. Prior official npm install failed fetching `https://cdn.functions.azure.com/public/4.0.281211/Azure.Functions.Cli.linux-x64.4.12.0.zip` with HTTP403; no alternate route or blocked download was retried. Thus no local Functions host/queue-extension runtime pass is claimed. Local Docker has only Keycloak images; no SQL server or pyodbc is installed. Do not label mock migration tests as SQL execution.
 
-Prepared `ci/azure-sql-migration-localdb-check.py` for the existing Windows CI LocalDB runner. It executes the exact Python migration orchestration against real SQL using integrated Windows identity: rollback on failed grants, exact eight-table commit, repeat rejection and cleanup. It deliberately uses a synthetic WITHOUT LOGIN principal, so it does not prove Azure Entra TYPE=E SID grants. Requires pyodbc plus the runner's ODBC Driver17/18; syntax validated, not run yet. Existing Windows CI can execute it after source review/publication. The local test TLS exception is confined to LocalDB, not the production migration code.
+Prepared `ci/azure-sql-migration-localdb-check.py` for the existing Windows CI LocalDB runner. It executes the exact Python migration orchestration against real SQL using integrated Windows identity: rollback on failed grants, exact eight-table commit, repeat rejection and cleanup. It deliberately uses a synthetic WITHOUT LOGIN principal, so it does not prove Azure Entra TYPE=E SID grants. Requires pyodbc plus the runner's ODBC Driver17/18; executed successfully in Windows CI40254393996. The local test TLS exception is confined to LocalDB, not the production migration code.
 
-Pinned queue components are Worker.Extensions.Storage.Queues5.5.4 and Azure.Storage.Queues12.28.1. Actual pinned-host poison/startup behavior remains to test; Azurite cannot prove Azure RBAC authorization. Candidate queue roles must not be called qualified solely from SDK source or emulator success.
+Pinned queue components are Worker.Extensions.Storage.Queues5.5.4 and Azure.Storage.Queues12.28.1. Actual pinned-host poison/startup behavior passed in CI40254393996; Azurite cannot prove Azure RBAC authorization. Candidate queue roles must not be called qualified solely from SDK source or emulator success.
 
 ## Ordered bootstrap (no circular system-identity prerequisite)
 
@@ -46,3 +46,11 @@ Activation settings are Terraform variables app_enabled, public_http_enabled, di
 A digest filename alone is not immutable. ci/azure-package-upload.py uses overwrite=False plus If-None-Match:*, then downloads the resulting object and verifies size/SHA256. Existing objects fail closed, including reruns, pending explicit verification/reuse handling. A principal with Blob write can still deliberately overwrite through other code; publisher review remains a trust boundary. Five fake-client contract tests passed; actual Azure upload/readback has not run. No SAS/listKeys or publishing credential code is used.
 
 First Windows qualification run40253717999 passed existing SQL integration, then the new LocalDB ODBC fixture failed because encryption is unsupported on its local connection. Fixture fixed to local IPC Encrypt=no with no remote-host parameter. Production migration still uses Encrypt=yes/TrustServerCertificate=no. Poison-host tests were not reached in that run.
+
+## Completed Windows qualification
+
+[Run 40254393996](https://github.com/r33drichards/webhook-mcp-router/actions/runs/40254393996), source f7d2032c0fad1233641a9b5d899a4a8af54425ea, completed successfully. LocalDB proved rollback on grant failure, exact eight-table commit and repeat-migration rejection. Actual Core Tools host with the pinned queue extension consumed valid wakeups, retried invalid JSON and wrote the expected precreated poison queue. Authenticated MCP initialization, destination tools, tenant denial, signed ingress, redacted logs, fresh-host readback, real OPA routing to SQL outbox and dedup passed. Separate local HTTPS certificate-validation delivery tests passed in the same run.
+
+This is not Azure RBAC, Entra SQL grants, hosted Keycloak/JWKS or hosted callback proof. Host fixture uses synthetic static signing keys and LocalDB; Azurite uses development authentication. The host test does not attempt a callback. No new Azure resources or secrets were created. The prior failing run is retained as evidence; production SQL TLS remains required.
+
+The subsequent guard-only change adds closed-stage dispatch/ingress rejection: 15 local guard fixtures pass. Conditional package upload has five fake-client checks; actual Azure blob upload is still pending approval/execution.
