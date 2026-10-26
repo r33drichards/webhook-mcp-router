@@ -58,7 +58,7 @@ resource "azapi_resource" "sql_server" {
   parent_id = local.group_id
   location  = "westus2"
   body = { properties = {
-    version = "12.0", minimalTlsVersion = "1.2", publicNetworkAccess = "Disabled"
+    version = "12.0", minimalTlsVersion = "1.2", publicNetworkAccess = length(var.sql_outbound_ips) > 0 ? "Enabled" : "Disabled"
     administrators = {
       administratorType = "ActiveDirectory", principalType = "User"
       login             = var.sql_admin_login, sid = var.sql_admin_object_id
@@ -99,7 +99,7 @@ resource "azapi_resource" "app" {
     kind = "functionapp"
     properties = {
       serverFarmId              = azapi_resource.foundation["plan"].id
-      enabled                   = false, publicNetworkAccess = "Disabled", httpsOnly = true, dailyMemoryTimeQuota = 1000
+      enabled                   = var.app_enabled, publicNetworkAccess = var.public_http_enabled ? "Enabled" : "Disabled", httpsOnly = true, dailyMemoryTimeQuota = 1000
       keyVaultReferenceIdentity = azapi_resource.foundation["control"].id
       siteConfig = {
         alwaysOn                               = false, use32BitWorkerProcess = false, netFrameworkVersion = "v10.0"
@@ -108,7 +108,7 @@ resource "azapi_resource" "app" {
         ipSecurityRestrictionsDefaultAction    = "Deny"
         scmIpSecurityRestrictionsDefaultAction = "Deny"
         scmIpSecurityRestrictionsUseMain       = false
-        ipSecurityRestrictions                 = []
+        ipSecurityRestrictions                 = [for index, cidr in var.http_allowed_cidrs : { name = "approved-${index}", ipAddress = cidr, action = "Allow", priority = 100 + index }]
         scmIpSecurityRestrictions              = []
         appSettings = [for name, value in {
           FUNCTIONS_EXTENSION_VERSION                  = "~4"
@@ -122,9 +122,9 @@ resource "azapi_resource" "app" {
           ROUTER_DELIVERY_KEYS_JSON                    = "@Microsoft.KeyVault(SecretUri=https://kv-whmcprv2-f7076f8e38.vault.azure.net/secrets/router-delivery-keys/)"
           RouterQueue__queueServiceUri                 = "https://whmcprv2f7076f8e38.queue.core.windows.net"
           RouterQueue__credential                      = "managedidentity"
-          ROUTER_DISPATCH_ENABLED                      = "false"
-          "AzureWebJobs.RouterDispatch.Disabled"       = "true"
-          "AzureWebJobs.RouterReconcile.Disabled"      = "true"
+          ROUTER_DISPATCH_ENABLED                      = tostring(var.dispatch_enabled)
+          "AzureWebJobs.RouterDispatch.Disabled"       = tostring(!var.dispatch_enabled)
+          "AzureWebJobs.RouterReconcile.Disabled"      = tostring(!var.dispatch_enabled)
           OPA_EXECUTABLE                               = "D:\\home\\site\\wwwroot\\tools\\opa.exe"
           OPA_CAPABILITIES                             = "D:\\home\\site\\wwwroot\\policies\\capabilities.json"
         } : { name = name, value = value }]
@@ -139,11 +139,15 @@ resource "azapi_resource" "app" {
       condition     = can(regex("^[a-f0-9]{64}$", var.package_sha256))
       error_message = "Verified package digest required before app creation."
     }
+    precondition {
+      condition     = (!var.public_http_enabled || (var.app_enabled && length(var.http_allowed_cidrs) > 0)) && (!var.dispatch_enabled || var.app_enabled)
+      error_message = "Activation requires enabled app and explicit reviewed ingress CIDRs; dispatch requires enabled app."
+    }
   }
 }
 
 variable "package_sha256" {
-  description = "Verified ZIP SHA256; object name is immutable and contains no SAS."
+  description = "Verified ZIP SHA256; upload must use conditional no-overwrite and verify downloaded bytes. No SAS."
   type        = string
   default     = ""
   validation {
@@ -163,4 +167,44 @@ output "sql_endpoint" {
 }
 output "sql_identity_ids" {
   value = { for key in ["registry_reader", "control", "delivery"] : key => azapi_resource.foundation[key].output }
+}
+
+variable "app_enabled" {
+  type    = bool
+  default = false
+}
+variable "public_http_enabled" {
+  type    = bool
+  default = false
+}
+variable "dispatch_enabled" {
+  type    = bool
+  default = false
+}
+variable "http_allowed_cidrs" {
+  type    = list(string)
+  default = []
+  validation {
+    condition     = alltrue([for cidr in var.http_allowed_cidrs : can(cidrhost(cidr, 0)) && !contains(["0.0.0.0/0", "::/0"], cidr)])
+    error_message = "Explicit reviewed CIDRs required; no allow-any rule."
+  }
+}
+
+variable "sql_outbound_ips" {
+  description = "Reviewed exact new app outbound IPv4 addresses; never Azure-services bypass."
+  type        = set(string)
+  default     = []
+  validation {
+    condition     = alltrue([for ip in var.sql_outbound_ips : can(cidrhost("${ip}/32", 0)) && ip != "0.0.0.0" && !strcontains(ip, "/")])
+    error_message = "Exact IPv4 addresses only; no 0.0.0.0 bypass."
+  }
+}
+resource "azapi_resource" "sql_firewall" {
+  for_each               = var.sql_outbound_ips
+  type                   = "Microsoft.Sql/servers/firewallRules@2023-08-01"
+  name                   = "router-egress-${replace(each.value, ".", "-")}"
+  parent_id              = azapi_resource.sql_server.id
+  body                   = { properties = { startIpAddress = each.value, endIpAddress = each.value } }
+  response_export_values = []
+  lifecycle { prevent_destroy = true }
 }

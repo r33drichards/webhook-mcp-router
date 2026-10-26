@@ -9,9 +9,9 @@ m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 drivers=pyodbc.drivers()
 driver=next((x for x in ['ODBC Driver 18 for SQL Server','ODBC Driver 17 for SQL Server'] if x in drivers),None)
 if not driver:raise SystemExit('SQL_SERVER_ODBC_DRIVER_MISSING')
-# Integrated local Windows identity only; LocalDB test certificate exception is
-# confined to this synthetic fixture, never the production migration runner.
-base=f'Driver={{{driver}}};Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=yes;Encrypt=yes;TrustServerCertificate=yes;'
+# Integrated Windows LocalDB uses local IPC and does not support ODBC TLS.
+# No remote host parameter is accepted; production migration retains verified TLS.
+base=f'Driver={{{driver}}};Server=(localdb)\\MSSQLLocalDB;Trusted_Connection=yes;Encrypt=no;'
 name='router_migration_'+uuid.uuid4().hex
 master=pyodbc.connect(base+'Database=master;',autocommit=True)
 try:
