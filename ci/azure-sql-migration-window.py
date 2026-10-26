@@ -1,6 +1,7 @@
 """Proposed exact-server network window. Separate approval/bootstrap required.
 Never changes database SKU, SQL users, runtime app or unrelated firewall rules.
 """
+import shutil
 import ipaddress,json,os,re,subprocess,sys
 from pathlib import Path
 SERVER='/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2/providers/Microsoft.Sql/servers/sql-webhook-mcp-router-v2-f7076f8e38'
@@ -10,7 +11,9 @@ def rule_name():
  run=os.environ['GITHUB_RUN_ID'];attempt=os.environ['GITHUB_RUN_ATTEMPT'];require(bool(re.fullmatch('[0-9]{1,20}',run)) and bool(re.fullmatch('[0-9]{1,4}',attempt)))
  return 'router-migration-'+run+'-'+attempt
 def rest(method,path,body=None):
- args=['az','rest','--method',method,'--url','https://management.azure.com'+path+('?api-version=2023-08-01'),'--only-show-errors','--output','json']
+ executable=shutil.which('az')
+ if not executable:raise FileNotFoundError('AZURE_CLI_NOT_FOUND')
+ args=[executable,'rest','--method',method,'--url','https://management.azure.com'+path+('?api-version=2023-08-01'),'--only-show-errors','--output','json']
  if body is not None:args+=['--body',json.dumps(body,separators=(',',':'))]
  result=subprocess.run(args,capture_output=True,text=True,timeout=120)
  require(result.returncode==0);return json.loads(result.stdout) if result.stdout.strip() else {}

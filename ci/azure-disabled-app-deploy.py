@@ -1,6 +1,7 @@
 """Pinned package and isolated CLI checks for the closed app workflow.
 No user login, credential discovery, IAM writes, key retrieval, or automatic retries.
 """
+import shutil
 import base64,hashlib,importlib.util,json,os,re,subprocess,sys,time,urllib.parse,urllib.request,zipfile
 from pathlib import Path
 REPO='r33drichards/webhook-mcp-router'
@@ -14,14 +15,29 @@ TENANT='0e4545fd-804f-4acb-ad41-f955e53645c1'
 SUBSCRIPTION='38d8d92f-3e84-4ef5-b3da-2788a843aa70'
 SUBJECT='repo:r33drichards@57335981/webhook-mcp-router@1432792940:environment:azure-router'
 ACCOUNT='whmcprv2f7076f8e38'
+LOGIN_STAGE='not_started'
+class CliFailed(ValueError):
+ def __init__(self, stderr):
+  # Only a bounded numeric provider code may escape captured CLI output.
+  match=re.search(rb'\bAADSTS([0-9]{5,9})\b',stderr or b'')
+  self.aadsts=match.group(1).decode('ascii') if match else None
+  super().__init__('CLI_EXIT_NONZERO')
+def safe_error(error):
+ if isinstance(error,CliFailed):return 'CLI_EXIT_NONZERO'+(':AADSTS'+error.aadsts if error.aadsts else '')
+ for cls,code in [(FileNotFoundError,'EXECUTABLE_NOT_FOUND'),(subprocess.TimeoutExpired,'PROCESS_TIMEOUT'),(KeyError,'CONFIG_MISSING'),(ValueError,'CONTRACT_OR_FORMAT'),(OSError,'OS_ERROR')]:
+  if isinstance(error,cls):return code
+ return 'OTHER_ERROR'
 
 def require(ok):
  if not ok:raise ValueError('CONTRACT_MISMATCH')
 def command(args):
  result=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=180,check=False)
- require(result.returncode==0)
+ if result.returncode!=0:raise CliFailed(result.stderr)
  return result.stdout
-def az(*args):return command(['az',*args,'--only-show-errors','--output','json'])
+def az(*args):
+ executable=shutil.which('az')
+ if not executable:raise FileNotFoundError('AZURE_CLI_NOT_FOUND')
+ return command([executable,*args,'--only-show-errors','--output','json'])
 def claims(token):
  # Local identity assertions on tokens returned over authenticated TLS; Azure
  # performs the actual GitHub signature/trust validation during exchange.
@@ -34,20 +50,30 @@ def check_identity(account,token_claims,client,principal,now):
  require(token_claims.get('aud') in ('https://management.azure.com/','https://management.core.windows.net/'))
  require(isinstance(token_claims.get('exp'),int) and token_claims['exp']>now+60)
 def login():
+ global LOGIN_STAGE
+ LOGIN_STAGE='config'
  client=os.environ['ARM_CLIENT_ID'];principal=os.environ['AZURE_ROUTER_PRINCIPAL_ID']
  for value in (client,principal):require(re.fullmatch('[a-f0-9-]{36}',value) is not None)
+ LOGIN_STAGE='isolated_cache'
  cache=Path(os.environ['AZURE_CONFIG_DIR']);require(not cache.exists());cache.mkdir(mode=0o700)
  require(os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_REF')=='refs/heads/main')
+ LOGIN_STAGE='github_token'
  url=os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'];require(urllib.parse.urlsplit(url).scheme=='https')
  url+=('&' if '?' in url else '?')+urllib.parse.urlencode({'audience':'api://AzureADTokenExchange'})
  request=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
  with urllib.request.urlopen(request,timeout=30) as response:token=json.load(response)['value']
+ LOGIN_STAGE='github_claims'
  c=claims(token)
  require(c.get('iss')=='https://token.actions.githubusercontent.com' and c.get('sub')==SUBJECT and c.get('aud')=='api://AzureADTokenExchange' and c.get('ref')=='refs/heads/main' and c.get('exp',0)>time.time()+60)
+ LOGIN_STAGE='azure_exchange'
  az('login','--service-principal','--username',client,'--tenant',TENANT,'--federated-token',token)
+ LOGIN_STAGE='subscription_select'
  az('account','set','--subscription',SUBSCRIPTION)
+ LOGIN_STAGE='account_read'
  account=json.loads(az('account','show'))
+ LOGIN_STAGE='arm_token'
  access=json.loads(az('account','get-access-token','--resource','https://management.azure.com/'))
+ LOGIN_STAGE='azure_claims'
  check_identity(account,claims(access['accessToken']),client,principal,time.time())
 
 def check_provenance(run,artifact):
@@ -96,7 +122,8 @@ if __name__=='__main__':
   elif stage in ('create','noop'):check_plan(json.loads(Path(sys.argv[2]).read_text()),stage)
   else:raise ValueError('UNKNOWN_STAGE')
   print('PASS closed deployment stage '+stage)
- except Exception:
+ except Exception as error:
   # Neither subprocess error output nor exception values may disclose tokens,
   # signed artifact URLs, private plan fields, or runtime configuration.
+  if stage=='login':print('LOGIN_DIAGNOSTIC stage='+LOGIN_STAGE+' category='+safe_error(error),file=sys.stderr)
   raise SystemExit('FAIL closed deployment stage '+(stage if stage in ('login','package','upload','create','noop') else 'invalid')+'; private details withheld')
