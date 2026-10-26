@@ -27,5 +27,27 @@
         "publicAccess": "None"
       }
     }
+  },
+  "host_leases": {
+    "type": "Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01",
+    "name": "azure-webjobs-hosts",
+    "parent_id": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2/providers/Microsoft.Storage/storageAccounts/whmcprv2f7076f8e38/blobServices/default",
+    "location": null,
+    "body": {
+      "properties": {
+        "publicAccess": "None"
+      }
+    }
+  },
+  "host_secrets": {
+    "type": "Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01",
+    "name": "azure-webjobs-secrets",
+    "parent_id": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2/providers/Microsoft.Storage/storageAccounts/whmcprv2f7076f8e38/blobServices/default",
+    "location": null,
+    "body": {
+      "properties": {
+        "publicAccess": "None"
+      }
+    }
   }
 }

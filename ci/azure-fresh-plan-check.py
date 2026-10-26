@@ -27,7 +27,7 @@ def contract(addr,a):
         wanted=PLAN_BODY if key=='plan' else STORAGE_BODY if key=='storage' else {}
         if not exact(body,wanted) or a.get('location')!='westus2':raise ValueError('FOUNDATION_CONTRACT_MISMATCH')
     if addr.startswith('azapi_resource.storage_children['):
-        wanted={'properties':{'publicAccess':'None'}} if addr.endswith('["packages"]') else {'properties':{}}
+        wanted={'properties':{'publicAccess':'None'}} if any(addr.endswith('["'+key+'"]') for key in ('packages','host_leases','host_secrets')) else {'properties':{}}
         if not exact(body,wanted):raise ValueError('STORAGE_CHILD_CONTRACT_MISMATCH')
     if addr=='azapi_resource.sql_database':
         if not exact(body,SQL_BODY) or a.get('location')!='westus2':raise ValueError('SQL_COST_SECURITY_CONTRACT_MISMATCH')
@@ -45,7 +45,7 @@ def contract(addr,a):
         for key,value in {'functionAppScaleLimit':1,'alwaysOn':False,'use32BitWorkerProcess':False,'netFrameworkVersion':'v10.0','ftpsState':'Disabled','minTlsVersion':'1.2','scmMinTlsVersion':'1.2','remoteDebuggingEnabled':False,'scmIpSecurityRestrictionsUseMain':False}.items():
             if not exact(site.get(key),value):raise ValueError('APP_SITE_CONTRACT_MISMATCH')
 
-def validate(plan):
+def validate(plan, foundation_only=False, require_noop=False):
     if plan.get('format_version')!='1.2' or plan.get('terraform_version')!='1.15.8' or plan.get('complete') is not True or plan.get('errored') is not False:raise ValueError('INCOMPLETE_OR_UNREVIEWED_PLAN')
     for key in ('deferred_changes','action_invocations','deferred_action_invocations'):
         if key in plan and plan[key]!=[]:raise ValueError('DEFERRED_OR_ACTION_PLAN')
@@ -54,6 +54,8 @@ def validate(plan):
         addr=r.get('address');c=r.get('change',{});a=c.get('after') or {}
         if addr not in expected or addr in seen or r.get('mode')!='managed' or r.get('type')!='azapi_resource':raise ValueError('OUTSIDE_FRESH_INVENTORY')
         seen.add(addr)
+        if foundation_only and addr=='azapi_resource.app[0]':raise ValueError('APP_CREATION_NOT_IN_FOUNDATION_APPLY')
+        if require_noop and c.get('actions')!=['no-op']:raise ValueError('POST_APPLY_DRIFT')
         if c.get('actions') not in (['create'],['no-op'],['update']) or c.get('importing'):raise ValueError('DELETE_REPLACE_OR_IMPORT_DENIED')
         for key in ('name','type','parent_id'):
             if a.get(key)!=expected[addr][key]:raise ValueError('RESOURCE_BINDING_MISMATCH')
@@ -72,6 +74,7 @@ def validate(plan):
     if set(expected)-{'azapi_resource.app[0]'}-seen:raise ValueError('INCOMPLETE_INVENTORY')
     return len(seen)
 if __name__=='__main__':
-    import sys
-    try: print('PASS fresh closed-router plan; resources='+str(validate(json.loads(Path(sys.argv[1]).read_text()))))
+    import argparse
+    parser=argparse.ArgumentParser();parser.add_argument('plan');parser.add_argument('--foundation-only',action='store_true');parser.add_argument('--require-noop',action='store_true');args=parser.parse_args()
+    try: print('PASS fresh closed-router plan; resources='+str(validate(json.loads(Path(args.plan).read_text()),args.foundation_only,args.require_noop)))
     except Exception: print('FAIL fresh-router plan; private details withheld');raise SystemExit(1)

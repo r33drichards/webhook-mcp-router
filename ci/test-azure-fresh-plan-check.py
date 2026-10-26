@@ -11,7 +11,7 @@ for addr,v in m.inventory().items():
   after.update(location='westus2',body={'sku':{'name':'GP_S_Gen5_2','tier':'GeneralPurpose','family':'Gen5','capacity':2},'properties':{'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','autoPauseDelay':60,'minCapacity':0.5,'maxSizeBytes':34359738368,'requestedBackupStorageRedundancy':'Local','zoneRedundant':False}})
  rows.append({'address':addr,'mode':'managed','type':'azapi_resource','change':{'actions':['create'],'after':after}})
 p={'format_version':'1.2','terraform_version':'1.15.8','complete':True,'errored':False,'resource_changes':rows}
-assert m.validate(p)==10
+assert m.validate(p)==12
 checks=1
 def rejected(q):
  global checks
@@ -39,6 +39,8 @@ for addr,path,value in [
  ('foundation["storage"]',['body','properties','supportsHttpsTrafficOnly'],False),
  ('foundation["storage"]',['body','properties','minimumTlsVersion'],'TLS1_0'),
  ('storage_children["packages"]',['body','properties','publicAccess'],'Blob'),
+ ('storage_children["host_leases"]',['body','properties','publicAccess'],'Container'),
+ ('storage_children["host_secrets"]',['parent_id'],m.RG.replace('-v2','-poc')),
  ('sql_database',['body','properties','freeLimitExhaustionBehavior'],'BillForUsage'),
  ('sql_database',['body','properties','useFreeLimit'],False),
  ('sql_database',['body','sku','capacity'],4),
@@ -52,7 +54,15 @@ for addr,path,value in [
 app=copy.deepcopy(m.inventory()['azapi_resource.app[0]'])
 app.update(location='westus2',body={'kind':'functionapp','properties':{'enabled':False,'publicNetworkAccess':'Disabled','dailyMemoryTimeQuota':1000,'httpsOnly':True,'serverFarmId':m.RG+'/providers/Microsoft.Web/serverfarms/asp-webhook-mcp-router-v2','siteConfig':{'functionAppScaleLimit':1,'alwaysOn':False,'use32BitWorkerProcess':False,'netFrameworkVersion':'v10.0','ftpsState':'Disabled','minTlsVersion':'1.2','scmMinTlsVersion':'1.2','remoteDebuggingEnabled':False,'scmIpSecurityRestrictionsUseMain':False,'ipSecurityRestrictionsDefaultAction':'Deny','scmIpSecurityRestrictionsDefaultAction':'Deny','ipSecurityRestrictions':[],'scmIpSecurityRestrictions':[],'appSettings':[{'name':k,'value':v} for k,v in {'ROUTER_DISPATCH_ENABLED':'false','AzureWebJobs.RouterDispatch.Disabled':'true','AzureWebJobs.RouterReconcile.Disabled':'true'}.items()]}}})
 q=copy.deepcopy(p);q['resource_changes'].append({'address':'azapi_resource.app[0]','mode':'managed','type':'azapi_resource','change':{'actions':['create'],'after':app}})
-assert m.validate(q)==11;checks+=1
+assert m.validate(q)==13;checks+=1
 for field,value in [('enabled',True),('publicNetworkAccess','Enabled'),('dailyMemoryTimeQuota',0),('dailyMemoryTimeQuota',1001),('httpsOnly',False),('serverFarmId','old-plan')]:mutate(q,'azapi_resource.app[0]',['body','properties',field],value)
 for field,value in [('functionAppScaleLimit',2),('functionAppScaleLimit',True),('alwaysOn',True),('ftpsState','AllAllowed'),('remoteDebuggingEnabled',True),('minTlsVersion','1.0'),('appSettings',[]),('ipSecurityRestrictions',[{'action':'Allow','ipAddress':'0.0.0.0/0'}]),('scmIpSecurityRestrictions',[{'action':'Allow','ipAddress':'0.0.0.0/0'}])]:mutate(q,'azapi_resource.app[0]',['body','properties','siteConfig',field],value)
+assert m.validate(p,foundation_only=True)==12;checks+=1
+for sample,options in [(q,{'foundation_only':True}),(p,{'require_noop':True})]:
+ try:m.validate(sample,**options)
+ except ValueError:checks+=1
+ else:raise AssertionError('Foundation/postapply boundary accepted')
+noop=copy.deepcopy(p)
+for row in noop['resource_changes']:row['change']['actions']=['no-op']
+assert m.validate(noop,foundation_only=True,require_noop=True)==12;checks+=1
 print(f'PASS {checks} fresh-plan cost/security guard fixtures (no live lifecycle executed)')

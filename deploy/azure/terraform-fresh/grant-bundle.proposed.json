@@ -17,7 +17,22 @@
   "runtimeGrants": {
     "appSystemAssignedIdentity": {
       "packages": "Blob read on router-packages container",
-      "host": "Functions host Blob permissions on dedicated host storage; precreated host containers and exact extension requirements to be qualified",
+      "host": {
+        "scopes": [
+          "azure-webjobs-hosts",
+          "azure-webjobs-secrets"
+        ],
+        "actions": [
+          "Microsoft.Storage/storageAccounts/blobServices/containers/read",
+          "Microsoft.Storage/storageAccounts/blobServices/containers/write"
+        ],
+        "dataActions": [
+          "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+          "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write",
+          "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete"
+        ],
+        "status": "Candidate only; actual Azure host qualification pending; no Blob Data Owner or delegation-key fallback"
+      },
       "router-dispatch": [
         "queues/read",
         "messages/read",
