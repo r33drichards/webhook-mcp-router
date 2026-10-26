@@ -1,0 +1,127 @@
+name: Upload verified package and create disabled router app
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_commit:
+        description: Exact reviewed main commit SHA (40 lowercase hex characters)
+        required: true
+        type: string
+      confirm_disabled_app:
+        description: Upload pinned package and create exactly one disabled closed app; no activation or firewall
+        required: true
+        default: false
+        type: boolean
+permissions: {}
+concurrency:
+  group: azure-router-infrastructure
+  cancel-in-progress: false
+jobs:
+  disabled-app:
+    if: github.repository == 'r33drichards/webhook-mcp-router' && github.ref == 'refs/heads/main' && inputs.confirm_disabled_app == true
+    environment: azure-router
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      ARM_CLIENT_ID: ${{ vars.AZURE_ROUTER_CLIENT_ID }}
+      ARM_TENANT_ID: 0e4545fd-804f-4acb-ad41-f955e53645c1
+      ARM_SUBSCRIPTION_ID: 38d8d92f-3e84-4ef5-b3da-2788a843aa70
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_USE_CLI: 'false'
+      ARM_SKIP_PROVIDER_REGISTRATION: 'true'
+      TF_IN_AUTOMATION: 'true'
+      CHECKPOINT_DISABLE: '1'
+      TF_VAR_sql_admin_login: ${{ vars.AZURE_SQL_ADMIN_LOGIN }}
+      TF_VAR_sql_admin_object_id: ${{ vars.AZURE_SQL_ADMIN_OBJECT_ID }}
+      TF_VAR_runtime_ready: 'true'
+      TF_VAR_app_enabled: 'false'
+      TF_VAR_public_http_enabled: 'false'
+      TF_VAR_dispatch_enabled: 'false'
+      TF_VAR_package_sha256: 2c286c45033558bae23798247249411bb080aabba1fd710751e47878e791782c
+      AZURE_ROUTER_PRINCIPAL_ID: ${{ vars.AZURE_ROUTER_PRINCIPAL_ID }}
+      AZURE_CORE_COLLECT_TELEMETRY: 'false'
+      ROUTER_STATE_ACCOUNT: ${{ vars.AZURE_ROUTER_STATE_ACCOUNT }}
+    steps:
+      - name: Set isolated runner paths
+        run: |
+          printf 'AZURE_CONFIG_DIR=%s/router-cli-private\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ROUTER_DEPLOY_PRIVATE=%s/router-deploy-private\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Require reviewed bootstrap and inventory
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          test "$GITHUB_SHA" = "$REVIEWED_COMMIT"
+          test "$(git rev-parse HEAD)" = "$REVIEWED_COMMIT"
+          python3 ci/test-azure-disabled-app-deploy.py
+          python3 ci/test-azure-disabled-app-plan-check.py
+          test -n "$TF_VAR_sql_admin_login"
+          test -n "$TF_VAR_sql_admin_object_id"
+          test -n "$ARM_CLIENT_ID"
+          test -n "$AZURE_ROUTER_PRINCIPAL_ID"
+          test -n "$ROUTER_STATE_ACCOUNT"
+          test -f deploy/azure/terraform-fresh/resources.json
+      - name: Obtain short-lived Azure CLI session and assert deployment principal
+        run: python3 ci/azure-disabled-app-deploy.py login
+      - name: Download and verify exact successful package artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ci/azure-disabled-app-deploy.py package
+      - name: Install checksum-pinned Terraform
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/terraform"
+          curl -fsSL --max-time 60 https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip -o "$RUNNER_TEMP/terraform/t.zip"
+          printf '%s  %s\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d "$RUNNER_TEMP/terraform/t.zip" | sha256sum --check --status
+          unzip -q "$RUNNER_TEMP/terraform/t.zip" -d "$RUNNER_TEMP/terraform"
+          echo "$RUNNER_TEMP/terraform" >> "$GITHUB_PATH"
+      - name: Validate and guard exactly one disabled app create
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          cd deploy/azure/terraform-fresh
+          terraform init -input=false -lockfile=readonly \
+            -backend-config="storage_account_name=$ROUTER_STATE_ACCOUNT" \
+            -backend-config=container_name=tfstate \
+            -backend-config=key=router-v2.tfstate > "$RUNNER_TEMP/tf-init.log" 2>&1
+          terraform validate -no-color
+          terraform plan -input=false -lock-timeout=60s -out="$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/tf-plan.log" 2>&1
+          terraform show -json "$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/router-plan.json"
+          python ../../../ci/azure-disabled-app-plan-check.py "$RUNNER_TEMP/router-plan.json" "$TF_VAR_package_sha256"
+          python ../../../ci/azure-disabled-app-deploy.py create "$RUNNER_TEMP/router-plan.json"
+          sha256sum "$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/router-plan.sha256"
+          # This checksum detects local plan changes; it is not independent human plan approval.
+      - name: Conditional package upload and downloaded hash verification
+        run: python3 ci/azure-disabled-app-deploy.py upload
+      - name: Apply the exact guarded plan and verify closed desired state
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          sha256sum --check --status "$RUNNER_TEMP/router-plan.sha256"
+          cd deploy/azure/terraform-fresh
+          python ../../../ci/azure-disabled-app-plan-check.py "$RUNNER_TEMP/router-plan.json" "$TF_VAR_package_sha256"
+          python ../../../ci/azure-disabled-app-deploy.py create "$RUNNER_TEMP/router-plan.json"
+          terraform apply -input=false -lock-timeout=60s "$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/tf-apply.log" 2>&1
+          terraform plan -input=false -lock-timeout=60s -out="$RUNNER_TEMP/router-post.tfplan" > "$RUNNER_TEMP/tf-post.log" 2>&1
+          terraform show -json "$RUNNER_TEMP/router-post.tfplan" > "$RUNNER_TEMP/router-post.json"
+          python ../../../ci/azure-disabled-app-plan-check.py "$RUNNER_TEMP/router-post.json" "$TF_VAR_package_sha256"
+          python ../../../ci/azure-disabled-app-deploy.py noop "$RUNNER_TEMP/router-post.json"
+          # No state, raw plan or log uploads. Failed/partial apply is never auto-destroyed.
+      - name: Remove isolated credentials, downloaded package and private plans
+        if: always()
+        run: |
+          export AZURE_CONFIG_DIR="$RUNNER_TEMP/router-cli-private"
+          export ROUTER_DEPLOY_PRIVATE="$RUNNER_TEMP/router-deploy-private"
+          az logout --only-show-errors >/dev/null 2>&1 || true
+          rm -rf -- "$AZURE_CONFIG_DIR" "$ROUTER_DEPLOY_PRIVATE"
+          rm -f -- "$RUNNER_TEMP/router.tfplan" "$RUNNER_TEMP/router-plan.json" "$RUNNER_TEMP/tf-init.log" "$RUNNER_TEMP/tf-plan.log" "$RUNNER_TEMP/router-plan.sha256" "$RUNNER_TEMP/tf-apply.log" "$RUNNER_TEMP/tf-post.log" "$RUNNER_TEMP/router-post.tfplan" "$RUNNER_TEMP/router-post.json"
+          rm -rf -- deploy/azure/terraform-fresh/.terraform

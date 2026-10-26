@@ -20,6 +20,7 @@ jobs:
           python3 ci/test-azure-sql-plan-projection.py
           python3 ci/test-azure-fresh-migration.py
           python3 ci/test-azure-package-upload.py
+          python3 ci/test-azure-disabled-app-deploy.py
   hosted-sdk:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
