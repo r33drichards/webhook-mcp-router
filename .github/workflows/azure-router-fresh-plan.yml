@@ -60,6 +60,7 @@ jobs:
           terraform validate -no-color
           terraform plan -input=false -lock-timeout=60s -out="$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/tf-plan.log" 2>&1
           terraform show -json "$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/router-plan.json"
+          python ../../../ci/azure-sql-plan-projection.py "$RUNNER_TEMP/router-plan.json"
           python ../../../ci/azure-fresh-plan-check.py "$RUNNER_TEMP/router-plan.json" --foundation-only --require-noop
           # No apply. Saved plan/state/logs are never uploaded or printed.
       - name: Remove private plan and logs
