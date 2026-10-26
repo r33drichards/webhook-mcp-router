@@ -5,7 +5,7 @@ from unittest.mock import patch
 root=Path(__file__).parent
 spec=importlib.util.spec_from_file_location('window',root/'azure-sql-migration-window.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 count=0
-with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1'}),patch.object(m.time,'sleep'):
+with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1','SQL_WINDOW_MARKER':''}),patch.object(m.time,'sleep'):
  for scenario in ['normal','delayed','transient_get','patch_failed_closed','patch_failed_open','readback_denied']:
   calls=[];reads=0;patched=False
   def fake(method,path,body=None):
@@ -43,3 +43,27 @@ for forbidden in ['error.Message','error.ToString','access.Token','ConnectionStr
  assert forbidden not in failure
 assert 'stage="SQL_TOKEN_ACQUISITION"' in source and 'stage="TDS_PROBE_CONNECT"' in source
 print(f'PASS {count} bounded cleanup/ARM diagnostic cases plus stderr numeric-only probe contract')
+
+# Enabling is asynchronous: retry only observation, never the enabling PATCH.
+with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1','SQL_WINDOW_MARKER':''}),patch.object(m.time,'sleep'):
+ for scenario in ['immediate','delayed','never','foreign_rule','unknown']:
+  calls=[];observations=0;opened=False
+  def fake_open(method,path,body=None):
+   global observations,opened
+   calls.append((method,path,body))
+   if method=='patch':opened=True;return {}
+   if path.endswith('/firewallRules'):
+    return {'value':[{'name':'unrelated'}] if opened and scenario=='foreign_rule' else []}
+   if not opened:return {'properties':{'publicNetworkAccess':'Disabled'}}
+   observations+=1
+   state='UNKNOWN' if scenario=='unknown' else 'Disabled' if scenario=='never' or scenario=='delayed' and observations<3 else 'Enabled'
+   return {'properties':{'publicNetworkAccess':state}}
+  m.rest=fake_open;failed=False;output=io.StringIO()
+  with contextlib.redirect_stderr(output):
+   try:m.operation('open')
+   except ValueError:failed=True
+  assert failed==(scenario in ['never','foreign_rule','unknown'])
+  assert sum(c[0]=='patch' for c in calls)==1
+  assert observations==(6 if scenario=='never' else 3 if scenario=='delayed' else 1)
+  assert 'unrelated' not in output.getvalue()
+print('PASS 5 bounded open-readback cases; foreign rules fail immediately; one PATCH only')

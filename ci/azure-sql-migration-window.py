@@ -29,6 +29,19 @@ def closed_readback():
   if attempt<5:time.sleep(2)
  raise last
 
+def open_readback():
+ global STAGE
+ STAGE='open_readback'
+ for attempt in range(6):
+  state=rest('get',SERVER)['properties']['publicNetworkAccess']
+  actual=rules()
+  # Never proceed when another rule appears, even during propagation.
+  print('SQL_WINDOW_OPEN_READBACK pna='+('Enabled' if state=='Enabled' else 'Disabled' if state=='Disabled' else 'UNKNOWN')+' rules_empty='+str(actual==[]).lower(),file=sys.stderr)
+  require(actual==[] and state in ('Enabled','Disabled'))
+  if state=='Enabled':return
+  if attempt<5:time.sleep(2)
+ raise ValueError('OPEN_STATE_NOT_OBSERVED')
+
 def require(value):
  if not value:raise ValueError('NETWORK_WINDOW_CONTRACT')
 def rule_name():
@@ -55,7 +68,7 @@ def operation(mode,probe=None):
   STAGE='open_request'
   rest('patch',SERVER,{'properties':{'publicNetworkAccess':'Enabled'}})
   STAGE='open_readback'
-  require(rest('get',SERVER)['properties']['publicNetworkAccess']=='Enabled' and rules()==[])
+  open_readback()
  elif mode=='allow':
   require(probe.get('sqlError')==40615 and set(probe)=={'sqlError','serverObservedTdsIpv4'})
   ip=public_ip(probe['serverObservedTdsIpv4']);require(rules()==[] and rest('get',SERVER)['properties']['publicNetworkAccess']=='Enabled')
