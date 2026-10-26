@@ -36,6 +36,47 @@ def marked(tree,path):
   tree=tree.get(part,False)
  return tree is True
 
+# AzAPI 2.13.0 local provider schema: only these attribute names may be displayed.
+PROVIDER_COMPUTED={'id','location','name','output','parent_id','tags','ignore_casing','ignore_missing_property','ignore_null_property','schema_validation_enabled'}
+PROVIDER_INPUT={'create_headers','create_query_parameters','delete_headers','delete_query_parameters','ignore_body_changes','ignore_other_items_in_list','list_unique_id_property','locks','read_headers','read_query_parameters','replace_triggers_external_values','replace_triggers_refs','response_export_values','retry','sensitive_body','sensitive_body_version','type','update_headers','update_query_parameters','identity','timeouts'}
+SQL_PROPERTIES=set("autoPauseDelay availabilityZone catalogCollation collation createMode elasticPoolId encryptionProtector encryptionProtectorAutoRotation federatedClientId freeLimitExhaustionBehavior highAvailabilityReplicaCount isLedgerOn keys licenseType longTermRetentionBackupResourceId maintenanceConfigurationId manualCutover maxSizeBytes minCapacity performCutover preferredEnclaveType readScale recoverableDatabaseId recoveryServicesRecoveryPointId requestedBackupStorageRedundancy restorableDroppedDatabaseId restorePointInTime sampleName secondaryType sourceDatabaseDeletionDate sourceDatabaseId sourceResourceId useFreeLimit zoneRedundant status databaseId creationDate currentServiceObjectiveName requestedServiceObjectiveName defaultSecondaryLocation maxLogSizeBytes isInfraEncryptionEnabled earliestRestoreDate currentSku currentBackupStorageRedundancy pausedDate resumedDate maintenanceConfigurationId isZoneRedundant maintenanceConfigurationName".split())
+BODY_PATHS={'body.'+k for k in ('kind','location','name','id','type','identity','tags')}
+BODY_PATHS|={'body.sku.'+k for k in ('name','tier','family','capacity','size')}
+BODY_PATHS|={'body.properties.'+k for k in SQL_PROPERTIES}
+BODY_PATHS|={'body.properties.currentSku.'+k for k in ('name','tier','family','capacity','size')}
+
+def state_label(value,unknown,sensitive):
+ if sensitive:return 'sensitive-withheld'
+ if unknown:return 'unknown'
+ if value is MISSING:return 'absent'
+ if value is None:return 'null'
+ return {dict:'object',list:'array',str:'string',bool:'boolean',int:'number',float:'number'}.get(type(value),'invalid')
+
+def other_changes(c,before,after):
+ paths=(PROVIDER_COMPUTED|PROVIDER_INPUT)|BODY_PATHS
+ rows=[]
+ for path in sorted(paths-set(FIELDS)):
+  b=value_at(before,path);a=value_at(after,path)
+  unknown=marked(c.get('after_unknown',{}),path)
+  if type(b) is not type(a) or b!=a or unknown:
+   rows.append({'field':path,'classification':'provider_computed' if path in PROVIDER_COMPUTED else 'sql_body' if path.startswith('body.') else 'provider_input',
+    'before_status':state_label(b,False,marked(c.get('before_sensitive',{}),path)),
+    'after_status':state_label(a,unknown,marked(c.get('after_sensitive',{}),path))})
+ # Detect changes outside named schema without revealing arbitrary keys or values.
+ def strip_known(obj):
+  obj=copy.deepcopy(obj)
+  for path in sorted(paths|set(FIELDS),key=len,reverse=True):
+   parts=path.split('.');node=obj
+   for part in parts[:-1]:
+    if not isinstance(node,dict):break
+    node=node.get(part)
+   if isinstance(node,dict):node.pop(parts[-1],None)
+  def prune(v):
+   if isinstance(v,dict):return {k:prune(x) for k,x in v.items() if x!={}}
+   return v
+  return prune(obj)
+ return {'classified_changes':rows,'unlisted_fields_changed':strip_known(before)!=strip_known(after)}
+
 def project(plan):
  rows=[r for r in plan.get('resource_changes',[]) if r.get('address')==ADDRESS]
  if len(rows)!=1:raise ValueError('SQL_RESOURCE_COUNT')
@@ -58,7 +99,7 @@ def project(plan):
   return obj
  other_changed=remaining(before)!=remaining(after)
  # Only fixed field paths are printed. Neither arbitrary paths nor raw objects are emitted.
- return {'resource':'sql_database','actions':actions,'changed_cost_security_fields':changes,'other_fields_changed':other_changed}
+ return {'resource':'sql_database','actions':actions,'changed_cost_security_fields':changes,'other_fields_changed':other_changed,'other_field_diagnostics':other_changes(c,before,after)}
 if __name__=='__main__':
  import sys
  try:print('SQL_PLAN_PROJECTION '+json.dumps(project(json.loads(Path(sys.argv[1]).read_text())),sort_keys=True))

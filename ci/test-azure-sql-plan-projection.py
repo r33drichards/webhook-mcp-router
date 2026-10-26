@@ -12,3 +12,10 @@ q=copy.deepcopy(p);q['resource_changes'][0]['change']['after_unknown']={'body':{
 q=copy.deepcopy(p);q['resource_changes'][0]['change']['after']['body']['sku']['capacity']=float('inf');assert 'Infinity' not in json.dumps(m.project(q))
 q=copy.deepcopy(p);q['resource_changes'][0]['change']['after']=copy.deepcopy(before);assert m.project(q)['changed_cost_security_fields']==[]
 print('PASS 7 SQL projection checks; synthetic canonical-SKU fixture, no live plan inspected')
+
+q=copy.deepcopy(p);q['resource_changes'][0]['change']['before']['output']={'secret':'DO_NOT_PRINT'};q['resource_changes'][0]['change']['after']['output']=None;q['resource_changes'][0]['change']['after_unknown']={'output':True}
+r=m.project(q);assert {'field':'output','classification':'provider_computed','before_status':'object','after_status':'unknown'} in r['other_field_diagnostics']['classified_changes'];assert 'DO_NOT_PRINT' not in json.dumps(r)
+q=copy.deepcopy(p);q['resource_changes'][0]['change']['after']['update_headers']={'Authorization':'DO_NOT_PRINT'};r=m.project(q);assert 'Authorization' not in json.dumps(r) and 'DO_NOT_PRINT' not in json.dumps(r)
+q=copy.deepcopy(p);q['resource_changes'][0]['change']['after']['body']['properties']['private_DO_NOT_PRINT']='DO_NOT_PRINT';r=m.project(q);assert r['other_field_diagnostics']['unlisted_fields_changed'] and 'DO_NOT_PRINT' not in json.dumps(r)
+q=copy.deepcopy(p);q['resource_changes'][0]['change']['after']['body']['properties']['currentSku']={'name':'DO_NOT_PRINT'};r=m.project(q);assert 'DO_NOT_PRINT' not in json.dumps(r);assert any(x['field']=='body.properties.currentSku.name' for x in r['other_field_diagnostics']['classified_changes'])
+print('PASS 4 complete-schema diagnostic checks; provider output/headers/unknown SQL fields remain private')
