@@ -36,7 +36,7 @@ try {
   return token;
  });
  var access=await credential.GetTokenAsync(new TokenRequestContext(["https://database.windows.net/.default"]));
- using(var claims=Claims(access.Token)){var c=claims.RootElement;Require(c.GetProperty("tid").GetString()==tenant && c.GetProperty("oid").GetString()==principal && c.GetProperty("appid").GetString()==client && c.GetProperty("aud").GetString()=="https://database.windows.net/");}
+ using(var claims=Claims(access.Token)){var c=claims.RootElement;Require(c.GetProperty("tid").GetString()==tenant && c.GetProperty("oid").GetString()==principal && c.GetProperty("appid").GetString()==client && (c.GetProperty("aud").GetString() is "https://database.windows.net" or "https://database.windows.net/"));}
  var connectionString=$"Server=tcp:{server},1433;Initial Catalog=router;Encrypt=True;TrustServerCertificate=False;Connect Timeout=20;Pooling=False;Application Name=Router.DbUp.Migrator";
  SqlConnection Connect()=>new(connectionString){AccessToken=access.Token};
  if(args[0]=="probe") {

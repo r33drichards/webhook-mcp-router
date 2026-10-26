@@ -25,7 +25,7 @@ try {
  });
  var token=await credential.GetTokenAsync(new TokenRequestContext(["https://database.windows.net/.default"]),timeout.Token);
  using(var claims=Claims(token.Token)){var c=claims.RootElement;
-  Require(c.GetProperty("tid").GetString()==Bootstrap.Tenant && c.GetProperty("oid").GetString()==Bootstrap.Administrator && c.GetProperty("aud").GetString()=="https://database.windows.net/" && c.GetProperty("exp").GetInt64()>DateTimeOffset.UtcNow.ToUnixTimeSeconds()+120);
+  Require(c.GetProperty("tid").GetString()==Bootstrap.Tenant && c.GetProperty("oid").GetString()==Bootstrap.Administrator && (c.GetProperty("aud").GetString() is "https://database.windows.net" or "https://database.windows.net/") && c.GetProperty("exp").GetInt64()>DateTimeOffset.UtcNow.ToUnixTimeSeconds()+120);
  }
  using var connection=new SqlConnection($"Server=tcp:{Bootstrap.Server},1433;Initial Catalog=router;Encrypt=True;TrustServerCertificate=False;Connect Timeout=20;Pooling=False;Application Name=Router.SqlBootstrap"){AccessToken=token.Token};
  if(args[0]=="probe") {
