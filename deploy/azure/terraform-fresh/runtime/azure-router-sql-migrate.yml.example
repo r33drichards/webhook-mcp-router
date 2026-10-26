@@ -94,7 +94,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Actual TDS egress unavailable; no HTTP IP fallback' }
           python ci/azure-sql-migration-window.py allow (Join-Path $env:RUNNER_TEMP 'router-tds-probe.json')
           if ($LASTEXITCODE -ne 0) { throw 'Exact TDS rule failed' }
-      - name: Execute fresh-only DbUp transaction as separate migration identity
+      - name: Apply pending DbUp migrations as separate migration identity
         if: inputs.operation == 'migrate'
         shell: pwsh
         run: |
