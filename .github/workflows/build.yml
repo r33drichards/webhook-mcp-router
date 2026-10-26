@@ -6,6 +6,18 @@ on:
 permissions:
   contents: read
 jobs:
+  azure-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check fresh Azure cost and security contract
+        run: |
+          python3 ci/test-azure-fresh-plan-check.py
+          python3 ci/test-azure-fresh-migration.py
+          python3 ci/test-azure-package-upload.py
   hosted-sdk:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -24,6 +24,8 @@ async Task Drain(StreamReader reader){while(await reader.ReadLineAsync() is stri
 async Task Start() {
  var p=new ProcessStartInfo(Path.GetFullPath(args[0])){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true};
  foreach(var value in new[]{"start","--no-build","--script-root",Path.GetFullPath(args[1]),"--port","7072","--address","127.0.0.1"})p.ArgumentList.Add(value);
+ p.Environment["AzureFunctionsJobHost__extensions__queues__visibilityTimeout"]="00:00:01";
+ p.Environment["AzureFunctionsJobHost__extensions__queues__maxPollingInterval"]="00:00:01";
  p.Environment["RouterQueue"]="UseDevelopmentStorage=true";p.Environment["AzureWebJobs.RouterReconcile.Disabled"]="true";
  p.Environment["FUNCTIONS_WORKER_RUNTIME"]="dotnet-isolated";p.Environment["AzureWebJobsStorage"]="UseDevelopmentStorage=true";p.Environment["AzureWebJobsSecretStorageType"]="files";p.Environment["FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT"]="1";
  p.Environment["ROUTER_HOST_FIXTURE"]=JsonSerializer.Serialize(new{Connection=connection,PublicJwks=jwks,IngressKey=Convert.ToBase64String(ingressKey),Opa=Path.GetFullPath(args[2]),Capabilities=Path.GetFullPath(args[3])});
@@ -42,12 +44,14 @@ async Task<JsonNode> Tool(string name,object arguments,string token){var(status,
 JsonNode Data(JsonNode result)=>JsonNode.Parse(result["content"]![0]!["text"]!.GetValue<string>())!["result"]!;
 async Task<int> Ingress(string id,byte[] body,bool valid,string source="source-a",string eventType="issues"){using var request=new HttpRequestMessage(HttpMethod.Post,"/api/webhooks/"+source){Content=new ByteArrayContent(body)};request.Headers.Add("X-GitHub-Delivery",id);request.Headers.Add("X-GitHub-Event",eventType);request.Headers.Add("X-Hub-Signature-256","sha256="+Convert.ToHexStringLower(HMACSHA256.HashData(valid?ingressKey:new byte[32],body)));using var response=await http.SendAsync(request);return(int)response.StatusCode;}
 var dispatchQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch",new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05){MessageEncoding=QueueMessageEncoding.Base64});
+var poisonQueue=new QueueClient("UseDevelopmentStorage=true","router-dispatch-poison",new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05){MessageEncoding=QueueMessageEncoding.Base64});
 bool success=false;
 try {
  await Sql(master,"CREATE DATABASE ["+dbName+"]");await SqlMigration.ApplyAsync(connection);
  await Sql(connection,File.ReadAllText("src/dotnet/Router.Storage/destination-schema.sql"));
  await Sql(connection,"CREATE TABLE dbo.FixtureWakeup(Received int NOT NULL)");
  await dispatchQueue.CreateIfNotExistsAsync();await dispatchQueue.ClearMessagesAsync();
+ await poisonQueue.CreateIfNotExistsAsync();await poisonQueue.ClearMessagesAsync();
  await Start();
  await dispatchQueue.SendMessageAsync("{\"TenantId\":\"tenant-a\",\"SourceId\":\"source-a\"}");
  bool triggered=false;
@@ -55,7 +59,18 @@ try {
   await using var db=new SqlConnection(connection);await db.OpenAsync();await using var cmd=new SqlCommand("SELECT COUNT(*) FROM dbo.FixtureWakeup",db);
   if(Convert.ToInt32(await cmd.ExecuteScalarAsync())>0){triggered=true;break;}await Task.Delay(1000);
  }
- Check(triggered,"actual queue trigger deserializes wakeup and invokes runtime using local Azurite");var a=Token();var b=Token("b");
+ Check(triggered,"actual queue trigger deserializes wakeup and invokes runtime using local Azurite");
+ const string invalidWakeup="synthetic-invalid-json";
+ await dispatchQueue.SendMessageAsync(invalidWakeup);
+ bool poisoned=false;
+ for(int attempt=0;attempt<90;attempt++) {
+  var messages=await poisonQueue.PeekMessagesAsync(1);
+  if(messages.Value.Length==1){Check(messages.Value[0].Body.ToString()==invalidWakeup,"poison preserves failed synthetic body");poisoned=true;break;}
+  await Task.Delay(1000);
+ }
+ Check(poisoned,"pinned queue extension retries invalid input and writes precreated poison queue");
+ Console.WriteLine("LIMIT: Azurite shared development authentication does not establish Azure RBAC permission sufficiency.");
+ var a=Token();var b=Token("b");
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");
  Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==8,"exploration and destination catalog");
@@ -87,7 +102,7 @@ try {
  Check(await new SqlOutbox(connection,new TenantContext("tenant-a","fixture",[]),genericWebhook:true).ClaimAsync(TimeSpan.FromSeconds(30),default) is null,"actual host duplicate does not create second generic delivery");
  success=true;Console.WriteLine("LIMIT: actual Functions host with synthetic static signing-key DI and real LocalDB; production HTTPS JWKS retrieval and live Keycloak remain untested. No callback delivery attempted.");
 } finally {
- await Stop();try {await dispatchQueue.DeleteIfExistsAsync();}catch(Azure.RequestFailedException e){Console.WriteLine("Fixture queue cleanup failed: HTTP "+e.Status);}
+ await Stop();try {await dispatchQueue.DeleteIfExistsAsync();await poisonQueue.DeleteIfExistsAsync();}catch(Azure.RequestFailedException e){Console.WriteLine("Fixture queue cleanup failed: HTTP "+e.Status);}
  SqlConnection.ClearAllPools();await Sql(master,"IF DB_ID('"+dbName+"') IS NOT NULL BEGIN ALTER DATABASE ["+dbName+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ["+dbName+"]; END");
  if(!success){/* Never print raw host logs: synthetic auth/signing fixture values may appear in diagnostics. */ Console.WriteLine("Host diagnostic withheld; failure assertion and host exit status identify stage.");}
 }
