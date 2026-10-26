@@ -44,11 +44,13 @@ jobs:
       TF_VAR_dispatch_enabled: 'false'
       TF_VAR_package_sha256: 2c286c45033558bae23798247249411bb080aabba1fd710751e47878e791782c
       AZURE_ROUTER_PRINCIPAL_ID: ${{ vars.AZURE_ROUTER_PRINCIPAL_ID }}
-      AZURE_CONFIG_DIR: ${{ runner.temp }}/router-cli-private
-      ROUTER_DEPLOY_PRIVATE: ${{ runner.temp }}/router-deploy-private
       AZURE_CORE_COLLECT_TELEMETRY: 'false'
       ROUTER_STATE_ACCOUNT: ${{ vars.AZURE_ROUTER_STATE_ACCOUNT }}
     steps:
+      - name: Set isolated runner paths
+        run: |
+          printf 'AZURE_CONFIG_DIR=%s/router-cli-private\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ROUTER_DEPLOY_PRIVATE=%s/router-deploy-private\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -117,6 +119,8 @@ jobs:
       - name: Remove isolated credentials, downloaded package and private plans
         if: always()
         run: |
+          export AZURE_CONFIG_DIR="$RUNNER_TEMP/router-cli-private"
+          export ROUTER_DEPLOY_PRIVATE="$RUNNER_TEMP/router-deploy-private"
           az logout --only-show-errors >/dev/null 2>&1 || true
           rm -rf -- "$AZURE_CONFIG_DIR" "$ROUTER_DEPLOY_PRIVATE"
           rm -f -- "$RUNNER_TEMP/router.tfplan" "$RUNNER_TEMP/router-plan.json" "$RUNNER_TEMP/tf-init.log" "$RUNNER_TEMP/tf-plan.log" "$RUNNER_TEMP/router-plan.sha256" "$RUNNER_TEMP/tf-apply.log" "$RUNNER_TEMP/tf-post.log" "$RUNNER_TEMP/router-post.tfplan" "$RUNNER_TEMP/router-post.json"

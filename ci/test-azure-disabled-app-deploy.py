@@ -56,3 +56,10 @@ with tempfile.TemporaryDirectory() as tmp:
   if args[:3]==('storage','blob','download'):(folder/'downloaded.zip').write_bytes(b'corrupt')
  m.az=broken_download;denied(lambda:m.upload(folder));m.DIGEST=old
 print(f'PASS {count} closed deployment checks; offline fixtures, no Azure identity/upload/apply performed')
+
+# runner context is unavailable in jobs.<job_id>.env; use the first runner step.
+workflow=(root.parent/'.github/workflows/azure-router-disabled-app-deploy.yml').read_text()
+job_env=workflow.split('    env:',1)[1].split('    steps:',1)[0]
+assert '${{ runner.' not in job_env
+assert 'Set isolated runner paths' in workflow
+print('PASS workflow runner-context regression')
