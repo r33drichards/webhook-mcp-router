@@ -1,6 +1,6 @@
 # Proposed C# DbUp migration in GitHub Actions
 
-Status: local draft only. No publication, Azure changes, SQL execution or new credentials. Runtime IAM's six roles/eight assignments are independently verified; those runtime identities receive no DDL rights.
+Status: draft PR #11; only disposable LocalDB execution and CI publication are approved. No live Azure changes, SQL execution or new credentials. Runtime IAM's six roles/eight assignments are independently verified; those runtime identities receive no DDL rights.
 
 ## Implementation
 
@@ -44,8 +44,8 @@ No new paid compute, private endpoint, NAT or runtime plan is proposed. Existing
 - Thirteen offline network-window cases passed, covering exact IP handling, unrelated-rule refusal/preservation and delete-before-disable ordering, failure containment and residual-rule refusal.
 - Proposed workflow parses; job permissions are contents:read/id-token:write only.
 - Actual local build exited 1 before compilation: .NET CLI could not create the `NuGet-Migrations` named mutex. This is an environment/tool startup failure, not a successful compile or dependency validation.
-- Windows LocalDB tests are prepared for rollback, eight-table commit/no journal and nonempty rejection. They have not run. They use integrated local auth and synthetic grants, not Azure Entra principals.
-- Actual OIDC SQL authentication, least-permission bootstrap, Azure firewall probe and migration remain untested. Publication/CI approval must precede qualification; live identity, SQL bootstrap and network access require the precise bundle above.
+- Windows LocalDB run 40272479185 passed rollback, exact eight-table commit/no journal, exact synthetic object grant, and nonempty rerun rejection on .NET SDK 10.0.402. It uses integrated local auth and synthetic grants, not Azure Entra principals. Restore exposed Pkcs 9.0.11 advisories; a follow-up pins patched 9.0.21 and makes migration-project NuGet vulnerability warnings errors. Follow-up execution must be verified separately.
+- Actual OIDC SQL authentication, least-permission bootstrap, Azure firewall probe and migration remain untested. Publication/CI is approved; live identity, SQL bootstrap and network access still require the precise bundle above.
 - Optional MCP backplane review remains issue #10 and is not included in this migration change set. The Function remains disabled and network-closed.
 
 ## Primary references
