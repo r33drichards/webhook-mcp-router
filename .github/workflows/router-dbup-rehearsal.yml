@@ -20,6 +20,8 @@ jobs:
       - name: Compile migrator and execute disposable SQL rehearsal
         shell: pwsh
         run: |
+          python ci/test-sql-migration-diagnostics.py
+          if ($LASTEXITCODE -ne 0) { throw 'Bounded SQL cleanup diagnostic tests failed' }
           python ci/test-sql-migration-runner.py --installed-cli
           if ($LASTEXITCODE -ne 0) { throw 'Windows Azure CLI and marker regression failed' }
           python ci/test-sql-migration-audience.py

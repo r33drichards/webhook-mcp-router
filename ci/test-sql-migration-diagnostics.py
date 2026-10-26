@@ -1,0 +1,45 @@
+"""Bounded failure diagnostics and closure readback; no Azure requests."""
+import contextlib,importlib.util,io,os
+from pathlib import Path
+from unittest.mock import patch
+root=Path(__file__).parent
+spec=importlib.util.spec_from_file_location('window',root/'azure-sql-migration-window.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+count=0
+with patch.dict(os.environ,{'GITHUB_RUN_ID':'123','GITHUB_RUN_ATTEMPT':'1'}),patch.object(m.time,'sleep'):
+ for scenario in ['normal','delayed','transient_get','patch_failed_closed','patch_failed_open','readback_denied']:
+  calls=[];reads=0;patched=False
+  def fake(method,path,body=None):
+   global reads,patched
+   calls.append((method,path,body))
+   if path.endswith('/firewallRules'):return {'value':[]}
+   if method=='patch':
+    patched=True
+    if scenario.startswith('patch_failed'):raise m.ArmFailure('ERROR: (BadRequest) SECRET')
+    return {}
+   assert method=='get' and patched
+   reads+=1
+   if scenario=='readback_denied' or (scenario=='transient_get' and reads==1):raise m.ArmFailure('ERROR: (AuthorizationFailed) SECRET')
+   value='Enabled' if scenario=='patch_failed_open' or (scenario=='delayed' and reads<3) else 'Disabled'
+   return {'properties':{'publicNetworkAccess':value}}
+  m.rest=fake;output=io.StringIO();failed=False
+  with contextlib.redirect_stderr(output):
+   try:m.operation('cleanup')
+   except ValueError:failed=True
+  assert failed==(scenario in ['patch_failed_closed','patch_failed_open','readback_denied'])
+  assert reads==(6 if scenario in ['patch_failed_open','readback_denied'] else 3 if scenario=='delayed' else 2 if scenario=='transient_get' else 1)
+  assert sum(c[0]=='patch' for c in calls)==1
+  assert all(c[2]['properties']['publicNetworkAccess']=='Disabled' for c in calls if c[0]=='patch')
+  assert 'SECRET' not in output.getvalue()
+  assert ('pna=Disabled' in output.getvalue())==(scenario not in ['patch_failed_open','readback_denied'])
+  count+=1
+ for raw,expected in [('ERROR: (AuthorizationFailed) SECRET','ARM:AuthorizationFailed'),('ERROR: (UntrustedPayload) SECRET','ARM:UNCLASSIFIED'),('SECRET','ARM:UNCLASSIFIED')]:
+  output=io.StringIO()
+  with contextlib.redirect_stderr(output):m.diagnostic(m.ArmFailure(raw))
+  assert expected in output.getvalue() and 'SECRET' not in output.getvalue() and 'UntrustedPayload' not in output.getvalue();count+=1
+source=(root.parent/'tools/Router.Migrator/Program.cs').read_text();failure=source.split('} catch(Exception error) {',1)[1]
+assert 'Console.Error.WriteLine' in failure and 'Take(4)' in failure
+assert 'number=e.Number,state=e.State,severity=e.Class' in failure
+for forbidden in ['error.Message','error.ToString','access.Token','ConnectionString','StackTrace']:
+ assert forbidden not in failure
+assert 'stage="SQL_TOKEN_ACQUISITION"' in source and 'stage="TDS_PROBE_CONNECT"' in source
+print(f'PASS {count} bounded cleanup/ARM diagnostic cases plus stderr numeric-only probe contract')
