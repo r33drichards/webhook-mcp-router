@@ -105,7 +105,7 @@ resource "azapi_resource" "app" {
         alwaysOn                               = false, use32BitWorkerProcess = false, netFrameworkVersion = "v10.0"
         functionAppScaleLimit                  = 1, ftpsState = "Disabled", minTlsVersion = "1.2", scmMinTlsVersion = "1.2"
         remoteDebuggingEnabled                 = false
-        ipSecurityRestrictionsDefaultAction    = "Deny"
+        ipSecurityRestrictionsDefaultAction    = var.public_mcp_ingress ? "Allow" : "Deny"
         scmIpSecurityRestrictionsDefaultAction = "Deny"
         scmIpSecurityRestrictionsUseMain       = false
         ipSecurityRestrictions                 = [for index, cidr in var.http_allowed_cidrs : { name = "approved-${index}", ipAddress = cidr, action = "Allow", priority = 100 + index }]
@@ -140,8 +140,8 @@ resource "azapi_resource" "app" {
       error_message = "Verified package digest required before app creation."
     }
     precondition {
-      condition     = (!var.public_http_enabled || (var.app_enabled && length(var.http_allowed_cidrs) > 0)) && (!var.dispatch_enabled || var.app_enabled)
-      error_message = "Activation requires enabled app and explicit reviewed ingress CIDRs; dispatch requires enabled app."
+      condition     = (!var.public_http_enabled || (var.app_enabled && (var.public_mcp_ingress || length(var.http_allowed_cidrs) > 0))) && (!var.public_mcp_ingress || (var.app_enabled && var.public_http_enabled && length(var.http_allowed_cidrs) == 0)) && (!var.dispatch_enabled || var.app_enabled)
+      error_message = "Public MCP ingress requires enabled public app and no CIDR overrides; restricted ingress requires reviewed CIDRs."
     }
   }
 }
@@ -176,6 +176,11 @@ variable "app_enabled" {
 variable "public_http_enabled" {
   type    = bool
   default = false
+}
+variable "public_mcp_ingress" {
+  description = "Explicit authenticated public-ingress stage; SCM remains denied. Main-site rules apply to all HTTP routes, not only /api/mcp."
+  type        = bool
+  default     = false
 }
 variable "dispatch_enabled" {
   type    = bool
