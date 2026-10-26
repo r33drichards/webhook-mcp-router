@@ -34,7 +34,7 @@ def inventory():
 # Independent approved contract: changing resource JSON alone cannot relax it.
 PLAN_BODY={'sku':{'name':'Y1','tier':'Dynamic'},'properties':{'reserved':False}}
 STORAGE_BODY={'kind':'StorageV2','sku':{'name':'Standard_LRS'},'properties':{'supportsHttpsTrafficOnly':True,'minimumTlsVersion':'TLS1_2','allowBlobPublicAccess':False,'allowSharedKeyAccess':False}}
-SQL_BODY={'sku':{'name':'GP_S_Gen5_2','tier':'GeneralPurpose','family':'Gen5','capacity':2},'properties':{'autoPauseDelay':60,'minCapacity':0.5,'maxSizeBytes':34359738368,'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','requestedBackupStorageRedundancy':'Local','zoneRedundant':False}}
+SQL_BODY={'sku':{'name':'GP_S_Gen5','tier':'GeneralPurpose','family':'Gen5','capacity':2},'properties':{'autoPauseDelay':60,'minCapacity':0.5,'maxSizeBytes':34359738368,'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','requestedBackupStorageRedundancy':'Local','zoneRedundant':False}}
 def exact(value, expected):
     # JSON equality must not confuse true with 1, or false with 0.
     return json.dumps(value,sort_keys=True,separators=(',',':'))==json.dumps(expected,sort_keys=True,separators=(',',':'))
