@@ -1,4 +1,4 @@
-name: Build closed Azure Functions package
+name: Build verified Azure Functions package
 on:
   push:
     paths:
@@ -12,14 +12,14 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
-      APPLICATION_COMMIT: b107be2598d3060ccece0c99075f52dff1bb7db5
+      APPLICATION_COMMIT: 2ab67cb064924ee955b790873a1d2e8b08f56838
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: b107be2598d3060ccece0c99075f52dff1bb7db5
+          ref: 2ab67cb064924ee955b790873a1d2e8b08f56838
           path: source
           persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
@@ -76,7 +76,7 @@ jobs:
       - name: Upload only verified secret-free package and manifests
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: router-windows-b107be25-${{ github.run_id }}
+          name: router-windows-2ab67cb0-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/router-release/router.zip
             ${{ runner.temp }}/router-release/SHA256SUMS
