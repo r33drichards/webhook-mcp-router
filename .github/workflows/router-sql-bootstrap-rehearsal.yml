@@ -1,0 +1,26 @@
+name: Disposable SQL administrator bootstrap rehearsal
+on:
+  push:
+    branches: [ci/sql-bootstrap-rehearsal]
+  pull_request:
+    paths: ['tools/Router.SqlBootstrap/**', 'tests/dotnet/Router.SqlBootstrapChecks/**', 'ci/test-sql-bootstrap-local-contract.py', '.github/workflows/router-sql-bootstrap-rehearsal.yml']
+permissions:
+  contents: read
+jobs:
+  localdb:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: '10.0.402'
+      - name: Compile helper and execute disposable bootstrap
+        shell: pwsh
+        run: |
+          python ci/test-sql-bootstrap-local-contract.py
+          if ($LASTEXITCODE -ne 0) { throw 'Bootstrap source contract failed' }
+          dotnet run --project tests/dotnet/Router.SqlBootstrapChecks -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Bootstrap LocalDB rehearsal failed' }
