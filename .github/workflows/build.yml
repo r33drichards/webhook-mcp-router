@@ -16,6 +16,7 @@ jobs:
       - name: Check fresh Azure cost and security contract
         run: |
           python3 ci/test-azure-fresh-plan-check.py
+          python3 ci/test-azure-disabled-app-plan-check.py
           python3 ci/test-azure-sql-plan-projection.py
           python3 ci/test-azure-fresh-migration.py
           python3 ci/test-azure-package-upload.py
