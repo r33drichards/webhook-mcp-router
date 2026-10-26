@@ -32,6 +32,8 @@ def validate(plan):
             site=props.get('siteConfig',{})
             if props.get('enabled') is not False or props.get('publicNetworkAccess')!='Disabled' or site.get('ipSecurityRestrictionsDefaultAction')!='Deny' or site.get('scmIpSecurityRestrictionsDefaultAction')!='Deny':raise ValueError('ACTIVATION_DENIED')
             settings={s['name']:s['value'] for s in site.get('appSettings',[])}
+            if settings.get('ROUTER_DISPATCH_ENABLED')!='false' or settings.get('AzureWebJobs.RouterDispatch.Disabled')!='true' or settings.get('AzureWebJobs.RouterReconcile.Disabled')!='true':raise ValueError('DISPATCH_ACTIVATION_DENIED')
+            if site.get('ipSecurityRestrictions')!=[] or site.get('scmIpSecurityRestrictions')!=[]:raise ValueError('INGRESS_RULES_NOT_APPROVED')
             if any(k in settings for k in ('WEBSITE_CONTENTSHARE','WEBSITE_CONTENTAZUREFILECONNECTIONSTRING','AzureWebJobsStorage')):raise ValueError('STORAGE_SECRET_PATH_DENIED')
     if set(expected)-{'azapi_resource.app[0]'}-seen:raise ValueError('INCOMPLETE_INVENTORY')
     return len(seen)
