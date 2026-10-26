@@ -21,7 +21,7 @@ static void Require(bool ok){if(!ok)throw new InvalidOperationException("CONTRAC
 try {
  Require(args.Length==1 && args[0] is "manifest" or "probe" or "migrate");
  var scripts=Router.Migrator.Migration.Scripts();
- if(args[0]=="manifest") {Console.WriteLine(JsonSerializer.Serialize(scripts.Select(s=>new{name=s.Name,sha256=Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(s.Contents)))})));return 0;}
+ if(args[0]=="manifest") {Console.WriteLine(JsonSerializer.Serialize(new[]{new SqlScript("000-preflight.sql",Router.Migrator.Migration.ReadResource("000-preflight.sql"))}.Concat(scripts).Select(s=>new{name=s.Name,sha256=Router.Migrator.Migration.Fingerprint(s.Contents)})));return 0;}
  Require(Required("GITHUB_REPOSITORY")=="r33drichards/webhook-mcp-router" && Required("GITHUB_REF")=="refs/heads/main");
  string client=Guid.Parse(Required("MIGRATION_CLIENT_ID")).ToString(),principal=Guid.Parse(Required("MIGRATION_PRINCIPAL_ID")).ToString();
  using var http=new HttpClient(){Timeout=TimeSpan.FromSeconds(20)};
@@ -48,9 +48,8 @@ try {
    Console.WriteLine(JsonSerializer.Serialize(new{serverObservedTdsIpv4=ip.ToString(),sqlError=40615}));return 0;
   }
  }
- // NullJournal intentionally retains eight-table fresh-only contract. No implicit
- // SchemaVersions table or future incremental migration behavior is introduced.
+ // Journal and pending scripts commit together; unchanged manifests execute no scripts.
  var result=Router.Migrator.Migration.Run(Connect,scripts);
  if(!result.Successful){Console.WriteLine("MIGRATION_TRANSACTION_FAILED_DETAILS_WITHHELD");return 1;}
- Console.WriteLine("PASS_FRESH_EIGHT_TABLE_TRANSACTION");return 0;
+ Console.WriteLine("PASS_INCREMENTAL_MIGRATION_TRANSACTION applied="+result.Scripts.Count());return 0;
 } catch {Console.WriteLine("MIGRATION_STAGE_FAILED_DETAILS_WITHHELD");return 1;}
