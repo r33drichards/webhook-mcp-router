@@ -8,7 +8,7 @@ for addr,v in m.inventory().items():
  if addr.endswith('sql_server'):
   after.update(location='westus2',body={'properties':{'version':'12.0','minimalTlsVersion':'1.2','publicNetworkAccess':'Disabled','administrators':{'administratorType':'ActiveDirectory','principalType':'User','login':'synthetic@example.invalid','sid':'00000000-0000-0000-0000-000000000001','tenantId':'0e4545fd-804f-4acb-ad41-f955e53645c1','azureADOnlyAuthentication':True}}})
  if addr.endswith('sql_database'):
-  after.update(location='westus2',body={'sku':{'name':'GP_S_Gen5_2','tier':'GeneralPurpose','family':'Gen5','capacity':2},'properties':{'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','autoPauseDelay':60,'minCapacity':0.5,'maxSizeBytes':34359738368,'requestedBackupStorageRedundancy':'Local','zoneRedundant':False}})
+  after.update(location='westus2',body={'sku':{'name':'GP_S_Gen5','tier':'GeneralPurpose','family':'Gen5','capacity':2},'properties':{'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','autoPauseDelay':60,'minCapacity':0.5,'maxSizeBytes':34359738368,'requestedBackupStorageRedundancy':'Local','zoneRedundant':False}})
  rows.append({'address':addr,'mode':'managed','type':'azapi_resource','change':{'actions':['create'],'after':after}})
 p={'format_version':'1.2','terraform_version':'1.15.8','complete':True,'errored':False,'resource_changes':rows}
 assert m.validate(p)==12
@@ -72,3 +72,21 @@ assert m.safe_failure(m.GuardFailure('POST_APPLY_DRIFT','azapi_resource.sql_data
 assert m.safe_failure(m.GuardFailure('secret-marker','secret-address'))=='FAIL GUARD_REASON=INVALID_PLAN_SHAPE RESOURCE_KEY=UNRECOGNIZED_RESOURCE'
 assert m.safe_failure(ValueError('secret-marker'))=='FAIL GUARD_REASON=INVALID_PLAN_SHAPE RESOURCE_KEY=PLAN'
 print('PASS 3 diagnostic allowlist checks; private values and arbitrary exception text withheld')
+
+# Observed Azure response representation: base SKU and separate capacity.
+# No action is exempted: a proposed update still fails the strict no-op gate.
+canonical=copy.deepcopy(noop)
+assert m.validate(canonical,foundation_only=True,require_noop=True)==12
+for name,capacity in [('GP_S_Gen5_2',2),('GP_S_Gen5',4),('GP_Gen5',2)]:
+ bad=copy.deepcopy(canonical)
+ db=next(r for r in bad['resource_changes'] if r['address']=='azapi_resource.sql_database')
+ db['change']['after']['body']['sku'].update(name=name,capacity=capacity)
+ try:m.validate(bad,foundation_only=True,require_noop=True)
+ except ValueError:pass
+ else:raise AssertionError('Noncanonical or changed-capacity SQL accepted')
+bad=copy.deepcopy(canonical)
+next(r for r in bad['resource_changes'] if r['address']=='azapi_resource.sql_database')['change']['actions']=['update']
+try:m.validate(bad,foundation_only=True,require_noop=True)
+except m.GuardFailure as error:assert error.reason=='POST_APPLY_DRIFT'
+else:raise AssertionError('SQL update bypassed no-op requirement')
+print('PASS 5 canonical SQL representation regressions; strict no-op unchanged')

@@ -75,7 +75,7 @@ resource "azapi_resource" "sql_database" {
   depends_on = [azapi_resource.sql_server]
   location   = "westus2"
   body = {
-    sku = { name = "GP_S_Gen5_2", tier = "GeneralPurpose", family = "Gen5", capacity = 2 }
+    sku = { name = "GP_S_Gen5", tier = "GeneralPurpose", family = "Gen5", capacity = 2 }
     properties = {
       autoPauseDelay                   = 60, minCapacity = 0.5, maxSizeBytes = 34359738368
       useFreeLimit                     = true, freeLimitExhaustionBehavior = "AutoPause"
