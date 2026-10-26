@@ -66,3 +66,9 @@ noop=copy.deepcopy(p)
 for row in noop['resource_changes']:row['change']['actions']=['no-op']
 assert m.validate(noop,foundation_only=True,require_noop=True)==12;checks+=1
 print(f'PASS {checks} fresh-plan cost/security guard fixtures (no live lifecycle executed)')
+
+# Diagnostics must never serialize values, exception text or unknown resource names.
+assert m.safe_failure(m.GuardFailure('POST_APPLY_DRIFT','azapi_resource.sql_database'))=='FAIL GUARD_REASON=POST_APPLY_DRIFT RESOURCE_KEY=sql_database'
+assert m.safe_failure(m.GuardFailure('secret-marker','secret-address'))=='FAIL GUARD_REASON=INVALID_PLAN_SHAPE RESOURCE_KEY=UNRECOGNIZED_RESOURCE'
+assert m.safe_failure(ValueError('secret-marker'))=='FAIL GUARD_REASON=INVALID_PLAN_SHAPE RESOURCE_KEY=PLAN'
+print('PASS 3 diagnostic allowlist checks; private values and arbitrary exception text withheld')
