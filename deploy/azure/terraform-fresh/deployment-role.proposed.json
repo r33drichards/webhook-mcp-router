@@ -1,0 +1,32 @@
+{
+  "Name": "Router v2 deployment resource manager",
+  "IsCustom": true,
+  "Description": "PROPOSAL: fresh router resource create/read/update only; no deletes/IAM writes/secret reads. Assign only new v2 RG; plan guards enforce names.",
+  "Actions": [
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Web/serverfarms/read",
+    "Microsoft.Web/serverfarms/write",
+    "Microsoft.Web/sites/read",
+    "Microsoft.Web/sites/write",
+    "Microsoft.Web/sites/config/read",
+    "Microsoft.Web/sites/config/write",
+    "Microsoft.Storage/storageAccounts/read",
+    "Microsoft.Storage/storageAccounts/write",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/read",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/write",
+    "Microsoft.Storage/storageAccounts/queueServices/queues/read",
+    "Microsoft.Storage/storageAccounts/queueServices/queues/write",
+    "Microsoft.Sql/servers/read",
+    "Microsoft.Sql/servers/write",
+    "Microsoft.Sql/servers/databases/read",
+    "Microsoft.Sql/servers/databases/write",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/read",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/write"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2"
+  ]
+}

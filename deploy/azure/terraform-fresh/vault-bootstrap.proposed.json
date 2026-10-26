@@ -1,0 +1,35 @@
+{
+  "status": "OPERATOR_ONLY_PROPOSAL_EXPLICIT_NETWORK_APPROVAL_REQUIRED",
+  "resource": {
+    "type": "Microsoft.KeyVault/vaults@2023-07-01",
+    "name": "kv-whmcprv2-f7076f8e38",
+    "parent_id": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2",
+    "location": "westus2",
+    "body": {
+      "properties": {
+        "tenantId": "0e4545fd-804f-4acb-ad41-f955e53645c1",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "enableRbacAuthorization": true,
+        "enableSoftDelete": true,
+        "softDeleteRetentionInDays": 7,
+        "enablePurgeProtection": true,
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "bypass": "None",
+          "defaultAction": "Allow"
+        }
+      }
+    }
+  },
+  "networkMeaning": "Public HTTPS endpoint; Azure Entra RBAC required; no anonymous secret access. No reliable Y1 VNet/private route assumed.",
+  "secretNames": [
+    "router-auth",
+    "router-tenants"
+  ],
+  "runtimeReaderIdentity": "new control UAMI; exact principal ID from foundation output",
+  "ciVaultManagement": false,
+  "secretValues": "Not present; operator populates separately after explicit credential approval."
+}

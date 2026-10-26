@@ -5,6 +5,8 @@ on:
       - 'src/dotnet/**'
       - 'tests/dotnet/**'
       - 'policies/**'
+      - 'deploy/azure/runtime/migration-plan.py'
+      - 'ci/azure-sql-migration-localdb-check.py'
       - '.github/workflows/dotnet-consumption.yml'
   workflow_dispatch:
 permissions:
@@ -50,6 +52,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'LocalDB start failed' }
           dotnet run --project tests/dotnet/Router.Integration --configuration Release
           if ($LASTEXITCODE -ne 0) { throw 'SQL checks failed' }
+      - name: Test fresh migration transaction against real LocalDB
+        shell: pwsh
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r ci/requirements-sql-fixture.txt --disable-pip-version-check
+          if ($LASTEXITCODE -ne 0) { throw 'ODBC Python dependency install failed' }
+          python ci/azure-sql-migration-localdb-check.py
+          if ($LASTEXITCODE -ne 0) { throw 'Fresh SQL migration qualification failed' }
       - name: Test official SDK stateless tools and events
         shell: pwsh
         run: |
@@ -74,8 +83,15 @@ jobs:
         shell: pwsh
         run: |
           $toolsPath = Join-Path $env:RUNNER_TEMP 'functions-host-tools'
-          npm install --prefix $toolsPath azure-functions-core-tools@4.12.0 azurite@3.35.0 --no-audit --no-fund
+          npm install --prefix $toolsPath azurite@3.35.0 --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'Official host tooling install failed; no alternate download attempted' }
+          $coreZip = Join-Path $env:RUNNER_TEMP 'core-tools-4.12.0.zip'
+          Invoke-WebRequest 'https://github.com/Azure/azure-functions-core-tools/releases/download/4.12.0/Azure.Functions.Cli.win-x64.4.12.0.zip' -OutFile $coreZip
+          if ((Get-FileHash $coreZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne '1b5b195c1966e746b447d283bd61a113ff60e476e6382bf900d068355b0bb76e') { throw 'Core Tools digest mismatch' }
+          $coreDir = Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin'
+          New-Item -ItemType Directory $coreDir -Force | Out-Null
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($coreZip, $coreDir)
+
           & (Join-Path $toolsPath 'node_modules/azure-functions-core-tools/bin/func.exe') --version
           if ($LASTEXITCODE -ne 0) { throw 'Core Tools version failed' }
       - name: Boot actual Functions host and verify routes

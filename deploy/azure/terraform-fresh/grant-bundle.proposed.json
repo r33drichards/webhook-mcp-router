@@ -1,0 +1,54 @@
+{
+  "status": "PROPOSAL_NOT_APPLIED",
+  "deploymentIdentity": "existing webhook-mcp-router-f7076f8e38-github-deploy",
+  "resourceRoleAssignmentScope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-v2",
+  "namespaceBoundary": "RG-scoped resource-type permissions are not Azure IAM name restrictions; reviewed plan guard restricts exact names.",
+  "nativeOperatorOnly": [
+    "Create new RG",
+    "Combined $10 subscription budget filtered to old and new RGs",
+    "Extend previous-version lifecycle filter to tfstate/router-v2.tfstate",
+    "Create/assign reviewed custom resource and data roles",
+    "Populate two runtime configuration secrets after exact credential approval",
+    "SQL administrator migration and exact firewall rules",
+    "Verified old-runtime cleanup after replacement acceptance",
+    "Create/security-manage authenticated-public vault and narrowly scoped secret-read role; no CI vaults/write"
+  ],
+  "resourceDeletes": "No CI delete permissions in first fresh deployment; later exact cleanup remains native operator only.",
+  "runtimeGrants": {
+    "appSystemAssignedIdentity": {
+      "packages": "Blob read on router-packages container",
+      "host": "Functions host Blob permissions on dedicated host storage; precreated host containers and exact extension requirements to be qualified",
+      "router-dispatch": [
+        "queues/read",
+        "messages/read",
+        "messages/process/action",
+        "messages/write",
+        "messages/add/action"
+      ],
+      "router-dispatch-poison": [
+        "messages/add/action"
+      ]
+    },
+    "controlUami": {
+      "keyVault": "Secret get for router-auth and router-tenants only; no list/set/delete",
+      "sql": "Existing reviewed control grants rendered with NEW verified client ID"
+    },
+    "readerUami": {
+      "sql": "Existing reviewed registry-read grants rendered with NEW verified client ID"
+    },
+    "deliveryUami": {
+      "sql": "Existing reviewed delivery grants rendered with NEW verified client ID"
+    }
+  },
+  "deploymentDataGrants": {
+    "packages": "Blob read/write at new router-packages container only; no state/runtime-container crossover",
+    "state": "Existing tfstate container role; new key router-v2.tfstate",
+    "identityAssignment": "assign/action only on three newly created UAMI IDs, after foundation creation"
+  },
+  "activationDelta": {
+    "app": "Exact app-scoped restart/start/stop and host trigger-sync operations, only after readiness gate",
+    "sqlNetwork": "Exact temporary migration IP and new app outbound addresses; no 0.0.0.0 Azure-services rule",
+    "httpNetwork": "Default-deny main/SCM; approve exact application ingress sources separately; SCM remains closed"
+  },
+  "trustBoundary": "Publishing code can execute as runtime managed identities and indirectly access authorized runtime secrets. Excluding direct CI secret reads does not isolate secrets from a malicious publisher."
+}
