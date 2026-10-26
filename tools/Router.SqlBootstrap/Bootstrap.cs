@@ -35,7 +35,7 @@ DECLARE @allowed table(principal_id int,class int,major_id int,minor_id int,perm
 INSERT @allowed SELECT principal_id,0,0,0,'CONNECT','G' FROM sys.database_principals WHERE name IN ('router_reader','router_control','router_delivery','router_migrator');
 INSERT @allowed VALUES(USER_ID('router_migrator'),0,0,0,'CREATE TABLE','G'),(USER_ID('router_migrator'),0,0,0,'VIEW DEFINITION','G'),(USER_ID('router_migrator'),3,SCHEMA_ID('registry'),0,'CONTROL','G'),(USER_ID('router_migrator'),3,SCHEMA_ID('delivery'),0,'CONTROL','G');
 IF EXISTS(SELECT 1 FROM sys.database_role_members WHERE member_principal_id IN (SELECT principal_id FROM @allowed)) THROW 51000,'EXISTING_ROLE_MEMBERSHIP_DENIED',1;
-IF EXISTS(SELECT grantee_principal_id,class,major_id,minor_id,permission_name,state FROM sys.database_permissions WHERE grantee_principal_id IN (SELECT principal_id FROM @allowed) EXCEPT SELECT * FROM @allowed) THROW 51000,'EXISTING_PERMISSION_DENIED',1;
+IF EXISTS(SELECT grantee_principal_id,class,major_id,minor_id,permission_name COLLATE DATABASE_DEFAULT,state COLLATE DATABASE_DEFAULT FROM sys.database_permissions WHERE grantee_principal_id IN (SELECT principal_id FROM @allowed) EXCEPT SELECT * FROM @allowed) THROW 51000,'EXISTING_PERMISSION_DENIED',1;
 GRANT CONNECT TO [router_reader];
 GRANT CONNECT TO [router_control];
 GRANT CONNECT TO [router_delivery];
@@ -43,8 +43,8 @@ GRANT CONNECT TO [router_migrator];
 GRANT CREATE TABLE,VIEW DEFINITION TO [router_migrator];
 GRANT CONTROL ON SCHEMA::registry TO [router_migrator];
 GRANT CONTROL ON SCHEMA::delivery TO [router_migrator];
-IF EXISTS(SELECT * FROM @allowed EXCEPT SELECT grantee_principal_id,class,major_id,minor_id,permission_name,state FROM sys.database_permissions) THROW 51000,'GRANT_READBACK_FAILED',1;
-IF EXISTS(SELECT grantee_principal_id,class,major_id,minor_id,permission_name,state FROM sys.database_permissions WHERE grantee_principal_id IN (SELECT principal_id FROM @allowed) EXCEPT SELECT * FROM @allowed) THROW 51000,'UNEXPECTED_GRANT',1;
+IF EXISTS(SELECT * FROM @allowed EXCEPT SELECT grantee_principal_id,class,major_id,minor_id,permission_name COLLATE DATABASE_DEFAULT,state COLLATE DATABASE_DEFAULT FROM sys.database_permissions) THROW 51000,'GRANT_READBACK_FAILED',1;
+IF EXISTS(SELECT grantee_principal_id,class,major_id,minor_id,permission_name COLLATE DATABASE_DEFAULT,state COLLATE DATABASE_DEFAULT FROM sys.database_permissions WHERE grantee_principal_id IN (SELECT principal_id FROM @allowed) EXCEPT SELECT * FROM @allowed) THROW 51000,'UNEXPECTED_GRANT',1;
 """);
   return s.ToString();
  }

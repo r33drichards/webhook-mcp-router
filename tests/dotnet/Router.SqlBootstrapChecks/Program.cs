@@ -22,11 +22,11 @@ var cs=$@"Server=(localdb)\{instance};Integrated Security=true;Encrypt=false;Poo
 void Sql(string db,string sql){using var c=new SqlConnection(cs+db);c.Open();using var cmd=new SqlCommand(sql,c);cmd.ExecuteNonQuery();}
 int Count(string sql){using var c=new SqlConnection(cs+"router");c.Open();using var cmd=new SqlCommand(sql,c);return (int)cmd.ExecuteScalar();}
 async Task Apply(string sql){using var c=new SqlConnection(cs+"router");await Bootstrap.Execute(c,sql);}
-async Task MustFail(string sql){try{await Apply(sql);}catch(SqlException){return;}throw new Exception("EXPECTED_REJECTION");}
+async Task MustFail(string sql,string expected){try{await Apply(sql);}catch(SqlException e)when(e.Number==51000 && e.Message.Contains(expected,StringComparison.Ordinal)){return;}throw new Exception("EXPECTED_REJECTION");}
 bool created=false;
 try{
  Local("create");created=true;Local("start");Sql("master","CREATE DATABASE router");
- await MustFail(fixture+"\nTHROW 51000,'SYNTHETIC_FAILURE',1;");
+ await MustFail(fixture+"\nTHROW 51000,'SYNTHETIC_FAILURE',1;","SYNTHETIC_FAILURE");
  if(Count("SELECT COUNT(*) FROM sys.schemas WHERE name IN ('registry','delivery')")!=0 || Count("SELECT COUNT(*) FROM sys.database_principals WHERE name LIKE 'router[_]%'")!=0)throw new Exception("ROLLBACK_FAILED");
  Console.WriteLine("PASS rollback removes schemas, users and grants after injected failure");
  await Apply(fixture);
@@ -35,10 +35,10 @@ try{
  Sql("router","EXECUTE AS USER='router_migrator'; CREATE TABLE registry.permission_probe(Id int); GRANT SELECT ON OBJECT::registry.permission_probe TO router_reader; DROP TABLE registry.permission_probe; REVERT;");
  if(Count("EXECUTE AS USER='router_migrator'; SELECT HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','ALTER ANY USER'); REVERT;")!=0)throw new Exception("UNEXPECTED_USER_ADMIN");
  Console.WriteLine("PASS schema-scoped migration create/grant works without ALTER ANY USER");
- Sql("router","ALTER ROLE db_owner ADD MEMBER router_migrator;");await MustFail(fixture);Sql("router","ALTER ROLE db_owner DROP MEMBER router_migrator;");
- Sql("router","GRANT CREATE VIEW TO router_migrator;");await MustFail(fixture);Sql("router","REVOKE CREATE VIEW FROM router_migrator;");
+ Sql("router","ALTER ROLE db_owner ADD MEMBER router_migrator;");await MustFail(fixture,"EXISTING_ROLE_MEMBERSHIP_DENIED");Sql("router","ALTER ROLE db_owner DROP MEMBER router_migrator;");
+ Sql("router","GRANT CREATE VIEW TO router_migrator;");await MustFail(fixture,"EXISTING_PERMISSION_DENIED");Sql("router","REVOKE CREATE VIEW FROM router_migrator;");
  Console.WriteLine("PASS unexpected role membership and extra direct grant rejected");
- Sql("router","CREATE TABLE dbo.keep_me(Id int);");await MustFail(fixture);
+ Sql("router","CREATE TABLE dbo.keep_me(Id int);");await MustFail(fixture,"NONEMPTY_DATABASE_REQUIRES_REVIEW");
  if(Count("SELECT COUNT(*) FROM sys.tables WHERE name='keep_me'")!=1)throw new Exception("DATA_CHANGED");
  Console.WriteLine("PASS nonempty database rejected without removing existing table");
  Console.WriteLine("LIMIT: fixture WITHOUT LOGIN users; Azure TYPE E creation, real interactive auth and network connectivity untested");
