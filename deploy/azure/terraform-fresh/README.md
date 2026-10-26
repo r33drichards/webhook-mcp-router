@@ -54,3 +54,9 @@ First Windows qualification run40253717999 passed existing SQL integration, then
 This is not Azure RBAC, Entra SQL grants, hosted Keycloak/JWKS or hosted callback proof. Host fixture uses synthetic static signing keys and LocalDB; Azurite uses development authentication. The host test does not attempt a callback. No new Azure resources or secrets were created. The prior failing run is retained as evidence; production SQL TLS remains required.
 
 The subsequent guard-only change adds closed-stage dispatch/ingress rejection: 15 local guard fixtures pass. Conditional package upload has five fake-client checks; actual Azure blob upload is still pending approval/execution.
+
+## Cost/security guard hardening
+
+The guard independently fixes Y1/Dynamic Windows, Standard_LRS HTTPS/TLS1.2 storage with shared keys and anonymous blobs disabled, private package container, SQL GP_S_Gen5_2 at min0.5/max2 vCores/32GiB/60-minute idle pause/free-limit AutoPause/local backup, Entra-only SQL and closed networking. App quota1000, scale1, HTTPS/TLS1.2, disabled FTPS/debug/always-on, and the exact fresh plan binding are checked. Forty-three fixtures include premium tiers, paid SQL fallback, capacity/storage increases, public/shared-key storage, old resource scope and activation rejection. Changing resource JSON alone does not relax the independently specified contract.
+
+The Build workflow now executes these guard, package and migration-orchestration tests on every push/PR. Windows run40254393996 remains tied to f7d2032; subsequent changes concern guards/tests, Build workflow and documentation only. They do not change the Windows application, fixture, migration or Functions-host workflow. No claim that the Windows run executed on a later head is made.
