@@ -1,0 +1,15 @@
+{
+  "Name": "Webhook router Terraform state reader writer",
+  "IsCustom": true,
+  "Description": "Candidate blob read/write and lease authority; validate backend operations before assignment. No blob deletion.",
+  "Actions": [],
+  "NotActions": [],
+  "DataActions": [
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write"
+  ],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "observedAtUtc": "2026-10-26T00:41:52.220404+00:00",
+  "nativeArtifactSha256": "d09f3cd30f370a33b9afd2b92e2a4c1b8fdcc9ed9e1fd49a9248a27fc143ddf6",
+  "note": "Normalized from trusted native operator metadata; hash identifies upstream artifact, not this serialization.",
+  "resourceCount": 12,
+  "excluded": [
+    "SQL master",
+    "app settings",
+    "keys",
+    "runtime secrets"
+  ]
+}

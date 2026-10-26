@@ -1,0 +1,245 @@
+{
+  "status": "PROPOSAL_NOT_APPLIED",
+  "roles": [
+    {
+      "roleDefinition": {
+        "Name": "Router adoption host_blob_role read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Authorization/roleAssignments/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourcegroups/rg-webhook-mcp-router-poc/providers/Microsoft.Storage/storageAccounts/whmcprf7076f8e38/providers/Microsoft.Authorization/roleAssignments/3c8c3ebb-aabf-597f-881a-3bce3ede64e2",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption budget read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Consumption/budgets/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Consumption/budgets/budget-webhook-mcp-router-poc-monthly-10",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption control_identity read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.ManagedIdentity/userAssignedIdentities/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourcegroups/rg-webhook-mcp-router-poc/providers/Microsoft.ManagedIdentity/userAssignedIdentities/webhook-mcp-router-f7076f8e38-control",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        },
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourcegroups/rg-webhook-mcp-router-poc/providers/Microsoft.ManagedIdentity/userAssignedIdentities/webhook-mcp-router-f7076f8e38-delivery",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        },
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourcegroups/rg-webhook-mcp-router-poc/providers/Microsoft.ManagedIdentity/userAssignedIdentities/webhook-mcp-router-f7076f8e38-registry-reader",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption group read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Resources/subscriptions/resourceGroups/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption sql_database read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Sql/servers/databases/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Sql/servers/sql-webhook-mcp-router-f7076f8e38/databases/router",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption sql_server read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Sql/servers/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Sql/servers/sql-webhook-mcp-router-f7076f8e38",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption content_share read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Storage/storageAccounts/fileServices/shares/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Storage/storageAccounts/whmcprf7076f8e38/fileServices/default/shares/router-content",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption storage read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Storage/storageAccounts/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Storage/storageAccounts/whmcprf7076f8e38",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption plan read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Web/serverfarms/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Web/serverfarms/asp-webhook-mcp-router-poc",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    },
+    {
+      "roleDefinition": {
+        "Name": "Router adoption app read",
+        "IsCustom": true,
+        "Description": "GET-only adoption; no secrets, mutations or data access.",
+        "Actions": [
+          "Microsoft.Web/sites/read"
+        ],
+        "NotActions": [],
+        "DataActions": [],
+        "NotDataActions": [],
+        "AssignableScopes": [
+          "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc"
+        ]
+      },
+      "assignments": [
+        {
+          "scope": "/subscriptions/38d8d92f-3e84-4ef5-b3da-2788a843aa70/resourceGroups/rg-webhook-mcp-router-poc/providers/Microsoft.Web/sites/webhook-mcp-router-f7076f8e38",
+          "principal": "NEW_DEPLOY_UAMI_PRINCIPAL_ID",
+          "principalType": "ServicePrincipal"
+        }
+      ]
+    }
+  ]
+}
