@@ -4,16 +4,25 @@ using Microsoft.Azure.Functions.Worker;
 using Router.Core;
 namespace Router.Functions;
 public sealed class HttpEndpoints(IRouterRuntime runtime) {
+    [Function("RouterOAuthMetadata")]
+    public IActionResult Metadata([HttpTrigger(AuthorizationLevel.Anonymous,"get",Route=McpDiscovery.Route)] HttpRequest request) {
+        request.HttpContext.Response.Headers.CacheControl="public, max-age=300";
+        return new JsonResult(McpDiscovery.Document()){ContentType="application/json",StatusCode=200};
+    }
+    private static UnauthorizedResult Challenge(HttpRequest request) {
+        request.HttpContext.Response.Headers.WWWAuthenticate=McpDiscovery.Challenge;
+        return new UnauthorizedResult();
+    }
     [Function("RouterMcpHttp")]
-    public async Task<IActionResult> Mcp([HttpTrigger(AuthorizationLevel.Anonymous,"post","get","delete",Route="mcp")] HttpRequest request,CancellationToken ct) {
+    public async Task<IActionResult> Mcp([HttpTrigger(AuthorizationLevel.Anonymous,"post","get","delete",Route="api/mcp")] HttpRequest request,CancellationToken ct) {
         // Anonymous disables the Functions key requirement here, NOT application authorization.
         // Every verb, notification and method passes bearer validation before SDK dispatch.
         if(request.Headers.ContainsKey("Origin"))return new StatusCodeResult(403);
         TenantContext tenant;
         try {
-            if(request.Headers.Authorization.Count!=1||!request.Headers.Authorization.ToString().StartsWith("Bearer ",StringComparison.OrdinalIgnoreCase))return new UnauthorizedResult();
+            if(request.Headers.Authorization.Count!=1||!request.Headers.Authorization.ToString().StartsWith("Bearer ",StringComparison.OrdinalIgnoreCase))return Challenge(request);
             tenant=await runtime.Validator.ValidateAsync(request.Headers.Authorization.ToString()[7..],"router:read",ct);
-        } catch(UnauthorizedAccessException e){return new StatusCodeResult(e.Message=="SCOPE_DENIED"?403:401);}
+        } catch(UnauthorizedAccessException e){return e.Message=="SCOPE_DENIED"?new StatusCodeResult(403):Challenge(request);}
         catch(OperationCanceledException)when(ct.IsCancellationRequested){throw;}
         catch{return new StatusCodeResult(503);}
         if(request.Method!="POST")return new StatusCodeResult(405);
@@ -33,7 +42,7 @@ public sealed class HttpEndpoints(IRouterRuntime runtime) {
         catch{return new StatusCodeResult(500);}
     }
     [Function("RouterWebhook")]
-    public async Task<IActionResult> Webhook([HttpTrigger(AuthorizationLevel.Anonymous,"post",Route="webhooks/{source}")] HttpRequest request,string source,CancellationToken ct) {
+    public async Task<IActionResult> Webhook([HttpTrigger(AuthorizationLevel.Anonymous,"post",Route="api/webhooks/{source}")] HttpRequest request,string source,CancellationToken ct) {
         try {
             var ingress=runtime.Ingress(source);if(ingress is null)return new NotFoundResult();
             byte[] body=await Read(request.Body,ct,true);
