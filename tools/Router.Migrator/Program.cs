@@ -28,13 +28,16 @@ try {
  using var http=new HttpClient(){Timeout=TimeSpan.FromSeconds(20)};
  stage="GITHUB_TOKEN_EXCHANGE";
  var credential=new ClientAssertionCredential(tenant,client,async cancellation=> {
+  stage="GITHUB_TOKEN_REQUEST";
   var endpoint=Required("ACTIONS_ID_TOKEN_REQUEST_URL");Require(new Uri(endpoint).Scheme=="https");
   using var request=new HttpRequestMessage(HttpMethod.Get,endpoint+(endpoint.Contains('?')?'&':'?')+"audience=api%3A%2F%2FAzureADTokenExchange");
   request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",Required("ACTIONS_ID_TOKEN_REQUEST_TOKEN"));
   using var response=await http.SendAsync(request,cancellation);response.EnsureSuccessStatusCode();
   using var data=JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellation));var token=data.RootElement.GetProperty("value").GetString()!;
+  stage="GITHUB_TOKEN_CLAIMS";
   using var claims=Claims(token);var c=claims.RootElement;
   Require(c.GetProperty("iss").GetString()=="https://token.actions.githubusercontent.com" && c.GetProperty("sub").GetString()==subject && c.GetProperty("aud").GetString()=="api://AzureADTokenExchange" && c.GetProperty("exp").GetInt64()>DateTimeOffset.UtcNow.ToUnixTimeSeconds()+60);
+  stage="SQL_TOKEN_EXCHANGE";
   return token;
  });
  stage="SQL_TOKEN_ACQUISITION";
@@ -61,7 +64,7 @@ try {
  Console.WriteLine("PASS_INCREMENTAL_MIGRATION_TRANSACTION applied="+result.Scripts.Count());return 0;
 } catch(Exception error) {
  // Never emit exception text, token claims, command arguments or connection strings.
- var category=error switch {SqlException=>"SQL",AuthenticationFailedException=>"TOKEN_ACQUISITION",OperationCanceledException=>"CANCELLED",HttpRequestException=>"HTTP",InvalidOperationException=>"CONTRACT",JsonException=>"JSON",FormatException=>"FORMAT",_=>"OTHER"};
+ var category=error switch {SqlException=>"SQL",AuthenticationFailedException=>"TOKEN_ACQUISITION",OperationCanceledException=>"CANCELLED",HttpRequestException=>"HTTP",InvalidOperationException=>"CONTRACT",KeyNotFoundException=>"MISSING_FIELD",JsonException=>"JSON",FormatException=>"FORMAT",_=>"OTHER"};
  var codes=error is SqlException sqlError ? sqlError.Errors.Cast<SqlError>().Take(4).Select(e=>new{number=e.Number,state=e.State,severity=e.Class}).ToArray() : [];
  Console.Error.WriteLine(JsonSerializer.Serialize(new{stage,category,sqlErrors=codes}));
  Console.WriteLine("MIGRATION_STAGE_FAILED_DETAILS_WITHHELD");return 1;
