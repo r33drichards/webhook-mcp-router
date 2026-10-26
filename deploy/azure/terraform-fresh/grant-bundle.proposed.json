@@ -8,7 +8,7 @@
     "Combined $10 subscription budget filtered to old and new RGs",
     "Extend previous-version lifecycle filter to tfstate/router-v2.tfstate",
     "Create/assign reviewed custom resource and data roles",
-    "Populate two runtime configuration secrets after exact credential approval",
+    "Populate three runtime configuration secrets after exact credential approval",
     "SQL administrator migration and exact firewall rules",
     "Verified old-runtime cleanup after replacement acceptance",
     "Create/security-manage authenticated-public vault and narrowly scoped secret-read role; no CI vaults/write"
@@ -30,7 +30,7 @@
       ]
     },
     "controlUami": {
-      "keyVault": "Secret get for router-auth and router-tenants only; no list/set/delete",
+      "keyVault": "Secret get on exactly router-auth, router-tenants and router-delivery-keys; no list/set/delete",
       "sql": "Existing reviewed control grants rendered with NEW verified client ID"
     },
     "readerUami": {

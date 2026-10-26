@@ -27,7 +27,8 @@
   "networkMeaning": "Public HTTPS endpoint; Azure Entra RBAC required; no anonymous secret access. No reliable Y1 VNet/private route assumed.",
   "secretNames": [
     "router-auth",
-    "router-tenants"
+    "router-tenants",
+    "router-delivery-keys"
   ],
   "runtimeReaderIdentity": "new control UAMI; exact principal ID from foundation output",
   "ciVaultManagement": false,

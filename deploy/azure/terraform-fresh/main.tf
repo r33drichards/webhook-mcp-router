@@ -26,7 +26,7 @@ locals {
 variable "sql_admin_login" { type = string }
 variable "sql_admin_object_id" { type = string }
 variable "runtime_ready" {
-  description = "False until operator bootstraps reviewed secret references and identity grants. Does not activate app."
+  description = "Create disabled app after package upload and control-UAMI secret-reference setup. App system-identity grants follow creation; this does not activate the app."
   type        = bool
   default     = false
 }
@@ -39,7 +39,7 @@ resource "azapi_resource" "foundation" {
   parent_id              = each.value.parent_id
   location               = each.value.location
   body                   = each.value.body
-  response_export_values = []
+  response_export_values = contains(["registry_reader", "control", "delivery"], each.key) ? ["properties.clientId", "properties.principalId"] : []
   lifecycle { prevent_destroy = true }
 }
 resource "azapi_resource" "storage_children" {
@@ -119,6 +119,7 @@ resource "azapi_resource" "app" {
           WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID = "SystemAssigned"
           ROUTER_AUTH_JSON                             = "@Microsoft.KeyVault(SecretUri=https://kv-whmcprv2-f7076f8e38.vault.azure.net/secrets/router-auth/)"
           ROUTER_TENANTS_JSON                          = "@Microsoft.KeyVault(SecretUri=https://kv-whmcprv2-f7076f8e38.vault.azure.net/secrets/router-tenants/)"
+          ROUTER_DELIVERY_KEYS_JSON                    = "@Microsoft.KeyVault(SecretUri=https://kv-whmcprv2-f7076f8e38.vault.azure.net/secrets/router-delivery-keys/)"
           RouterQueue__queueServiceUri                 = "https://whmcprv2f7076f8e38.queue.core.windows.net"
           RouterQueue__credential                      = "managedidentity"
           ROUTER_DISPATCH_ENABLED                      = "false"
@@ -155,4 +156,11 @@ check "runtime_package" {
     condition     = !var.runtime_ready || can(regex("^[a-f0-9]{64}$", var.package_sha256))
     error_message = "Verified uploaded package required before app creation."
   }
+}
+
+output "sql_endpoint" {
+  value = "sql-webhook-mcp-router-v2-f7076f8e38.database.windows.net"
+}
+output "sql_identity_ids" {
+  value = { for key in ["registry_reader", "control", "delivery"] : key => azapi_resource.foundation[key].output }
 }

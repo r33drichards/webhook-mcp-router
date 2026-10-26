@@ -12,7 +12,7 @@ Validation to date: Terraform init without backend, format/validate and syntheti
 
 ## Vault ownership and network approval
 
-Vault kv-whmcprv2-f7076f8e38 is operator-owned, outside Terraform resource lifecycle and CI resource grants. Proposed public HTTPS endpoint with Entra RBAC, no anonymous access, bypass None, exact control-UAMI get permission on router-auth and router-tenants only. App Service reference requests can originate outside the app's outbound-IP list; Windows Y1 has no VNet integration, so default-deny vault/IP allowlisting is not asserted to work. Native operator must approve/bootstrap this explicit network choice and secret scope; no vault or secret was created. Alternative operator-managed protected app settings would avoid the vault but require careful merge/config ownership outside Terraform and potential setting reads; it is not silently selected.
+Vault kv-whmcprv2-f7076f8e38 is operator-owned, outside Terraform resource lifecycle and CI resource grants. Proposed public HTTPS endpoint with Entra RBAC, no anonymous access, bypass None, exact control-UAMI get permission on router-auth, router-tenants and router-delivery-keys only. App Service reference requests can originate outside the app's outbound-IP list; Windows Y1 has no VNet integration, so default-deny vault/IP allowlisting is not asserted to work. Native operator must approve/bootstrap this explicit network choice and secret scope; no vault or secret was created. Alternative operator-managed protected app settings would avoid the vault but require careful merge/config ownership outside Terraform and potential setting reads; it is not silently selected.
 
 The deployment principal cannot manage vault security or directly read secret values under this proposal. Nevertheless a code publisher can run code as the app's identities, which can read authorized runtime secrets. Review/publish controls are part of the secret trust boundary.
 
@@ -23,3 +23,18 @@ Local .NET SDK 10.0.402 does exist at `.tools/dotnet/dotnet` (it was not on PATH
 Prepared `ci/azure-sql-migration-localdb-check.py` for the existing Windows CI LocalDB runner. It executes the exact Python migration orchestration against real SQL using integrated Windows identity: rollback on failed grants, exact eight-table commit, repeat rejection and cleanup. It deliberately uses a synthetic WITHOUT LOGIN principal, so it does not prove Azure Entra TYPE=E SID grants. Requires pyodbc plus the runner's ODBC Driver17/18; syntax validated, not run yet. Existing Windows CI can execute it after source review/publication. The local test TLS exception is confined to LocalDB, not the production migration code.
 
 Pinned queue components are Worker.Extensions.Storage.Queues5.5.4 and Azure.Storage.Queues12.28.1. Actual pinned-host poison/startup behavior remains to test; Azurite cannot prove Azure RBAC authorization. Candidate queue roles must not be called qualified solely from SDK source or emulator success.
+
+## Ordered bootstrap (no circular system-identity prerequisite)
+
+1. Foundation creates plan/storage/queues/private package container/SQL and three UAMIs. Native operator manages vault and approved control-UAMI secret reference reads. Upload verified ZIP under its SHA256 object name.
+2. Set runtime_ready=true to create the DISABLED, network-closed app. Control-UAMI secret-reference access can exist already; system identity does not exist until this creation. Do not claim package/host access succeeds at this stage.
+3. Native operator obtains the new app system principal and grants exact host/package/queue authority. Execute migration and render runtime secret JSON using the NEW client IDs; never reuse old-router IDs.
+4. Only after configuration/grants/readiness pass, review activation/start/trigger-sync and exact application ingress restrictions. SCM stays default-deny.
+
+Queue sender reads AzureWebJobsStorage__accountName=whmcprv2f7076f8e38 and explicitly uses SystemAssigned. Queue trigger uses RouterQueue__queueServiceUri=https://whmcprv2f7076f8e38.queue.core.windows.net and RouterQueue__credential=managedidentity (no client selector). Both use the new app system identity. SQL endpoint is sql-webhook-mcp-router-v2-f7076f8e38.database.windows.net. sql_identity_ids output provides NEW client/principal IDs for operator validation, not secrets.
+
+## Delivery key configuration is a third protected reference
+
+ROUTER_DELIVERY_KEYS_JSON references router-delivery-keys in the operator-owned vault. Shape: {"mcp-js":{"approved_key_alias":"BASE64_24_TO_64_BYTE_SECRET"}}. This is an explanatory placeholder, not a usable key or a secret to commit. With no configured destinations, {"mcp-js":{}} is a closed staging value; it does not prove delivery readiness. ResolveAsync reads this setting when resolving a selected delivery key, not in the resolver constructor. Actual outbound delivery requires a separately approved destination and matching alias/key. Include third-secret get scope in the same not-yet-approved bootstrap bundle; no new live credential has been generated.
+
+All five SQL connection fields remain inside ROUTER_TENANTS_JSON: RegistryReadConnection uses the fresh reader client; RegistryWriteConnection/LogReadConnection use fresh control; OutboxConnection/LogWriteConnection use fresh delivery. No extra standalone SQL app settings are introduced.
