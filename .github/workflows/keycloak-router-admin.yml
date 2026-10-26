@@ -1,0 +1,24 @@
+name: Verify live router realm authentication (read only)
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: keycloak-router-admin
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.repository == 'r33drichards/webhook-mcp-router' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: keycloak-router-admin
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Probe exact live realm and authorization boundaries
+        shell: bash
+        run: python3 ci/keycloak-live-auth-probe.py
+# No Terraform, admin mutations, secret inputs, artifacts or cloud deployment.
