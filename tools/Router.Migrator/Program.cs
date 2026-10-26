@@ -44,11 +44,11 @@ try {
  var access=await credential.GetTokenAsync(new TokenRequestContext(["https://database.windows.net/.default"]));
  stage="SQL_TOKEN_CLAIMS";
  using(var claims=Claims(access.Token)){var c=claims.RootElement;Require(c.GetProperty("tid").GetString()==tenant && c.GetProperty("oid").GetString()==principal && c.GetProperty("appid").GetString()==client && (c.GetProperty("aud").GetString() is "https://database.windows.net" or "https://database.windows.net/"));}
- var connectionString=$"Server=tcp:{server},1433;Initial Catalog=router;Encrypt=True;TrustServerCertificate=False;Connect Timeout=20;Pooling=False;Application Name=Router.DbUp.Migrator";
+ var connectionString=$"Server=tcp:{server},1433;Initial Catalog=router;Encrypt=True;TrustServerCertificate=False;Connect Timeout=20;ConnectRetryCount=0;Pooling=False;Application Name=Router.DbUp.Migrator";
  SqlConnection Connect()=>new(connectionString){AccessToken=access.Token};
  if(args[0]=="probe") {
   stage="TDS_PROBE_CONNECT";
-  try {using var connection=Connect();await connection.OpenAsync();Console.WriteLine("TDS_ALREADY_REACHABLE_UNEXPECTED");return 3;}
+  try {await Router.Migrator.ConnectionWarmup.OpenAsync(Connect);Console.WriteLine("TDS_ALREADY_REACHABLE_UNEXPECTED");return 3;}
   catch(SqlException e)when(e.Number==40615) {
    stage="FIREWALL_RESPONSE_PARSE";
    var match=Regex.Match(e.Message,@"Client with IP address '([0-9.]+)'",RegexOptions.CultureInvariant);
@@ -57,10 +57,12 @@ try {
    Console.WriteLine(JsonSerializer.Serialize(new{serverObservedTdsIpv4=ip.ToString(),sqlError=40615}));return 0;
   }
  }
+ stage="PRE_MIGRATION_CONNECT";
+ await Router.Migrator.ConnectionWarmup.OpenAsync(Connect);
  // Journal and pending scripts commit together; unchanged manifests execute no scripts.
  stage="MIGRATION_TRANSACTION";
  var result=Router.Migrator.Migration.Run(Connect,scripts);
- if(!result.Successful){Console.WriteLine("MIGRATION_TRANSACTION_FAILED_DETAILS_WITHHELD");return 1;}
+ if(!result.Successful)throw result.Error??new InvalidOperationException("MIGRATION_TRANSACTION_FAILED");
  Console.WriteLine("PASS_INCREMENTAL_MIGRATION_TRANSACTION applied="+result.Scripts.Count());return 0;
 } catch(Exception error) {
  // Never emit exception text, token claims, command arguments or connection strings.
