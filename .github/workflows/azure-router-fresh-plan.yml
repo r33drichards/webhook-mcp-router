@@ -1,4 +1,4 @@
-name: Plan fresh closed Azure router
+name: Diagnose fresh foundation read-only
 on:
   workflow_dispatch:
 permissions: {}
@@ -47,7 +47,7 @@ jobs:
           printf '%s  %s\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d "$RUNNER_TEMP/terraform/t.zip" | sha256sum --check --status
           unzip -q "$RUNNER_TEMP/terraform/t.zip" -d "$RUNNER_TEMP/terraform"
           echo "$RUNNER_TEMP/terraform" >> "$GITHUB_PATH"
-      - name: Validate and guard private adoption plan
+      - name: Read-only refreshed plan and safe guard diagnosis
         shell: bash
         run: |
           set -euo pipefail
@@ -60,7 +60,7 @@ jobs:
           terraform validate -no-color
           terraform plan -input=false -lock-timeout=60s -out="$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/tf-plan.log" 2>&1
           terraform show -json "$RUNNER_TEMP/router.tfplan" > "$RUNNER_TEMP/router-plan.json"
-          python ../../../ci/azure-fresh-plan-check.py "$RUNNER_TEMP/router-plan.json"
+          python ../../../ci/azure-fresh-plan-check.py "$RUNNER_TEMP/router-plan.json" --foundation-only --require-noop
           # No apply. Saved plan/state/logs are never uploaded or printed.
       - name: Remove private plan and logs
         if: always()
