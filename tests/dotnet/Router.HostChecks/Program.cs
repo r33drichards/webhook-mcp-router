@@ -70,6 +70,15 @@ try {
  }
  Check(poisoned,"pinned queue extension retries invalid input and writes precreated poison queue");
  Console.WriteLine("LIMIT: Azurite shared development authentication does not establish Azure RBAC permission sufficiency.");
+
+ using(var metadataResponse=await http.GetAsync("/.well-known/oauth-protected-resource/api/mcp")) {
+  Check(metadataResponse.StatusCode==HttpStatusCode.OK,"public discovery root route");
+  var metadata=JsonNode.Parse(await metadataResponse.Content.ReadAsStringAsync())!;
+  Check(metadata["resource"]!.GetValue<string>()=="https://webhook-mcp-router-v2-f7076f8e38.azurewebsites.net/api/mcp","discovery canonical resource");
+ }
+ using(var anonymous=await http.PostAsync("/api/mcp",new StringContent("{}",Encoding.UTF8,"application/json"))) {
+  Check(anonymous.StatusCode==HttpStatusCode.Unauthorized&&anonymous.Headers.WwwAuthenticate.Any(h=>h.Scheme=="Bearer"&&h.Parameter!.Contains("resource_metadata=")),"missing bearer discovery challenge");
+ }
  var a=Token();var b=Token("b");
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");

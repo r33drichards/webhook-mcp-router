@@ -15,8 +15,9 @@ using var rsa=RSA.Create(2048);var key=new RsaSecurityKey(rsa){KeyId="fixture"};
 var auth=new TokenValidator("https://issuer.example.invalid","router",[new("a","svc-a","tenant-a",["router:read","requests:read","subscriptions:write"]),new("b","svc-b","tenant-b",["router:read","requests:read","subscriptions:write"])],new Keys(key));
 using var runtime=new FixtureRuntime(auth);var endpoints=new HttpEndpoints(runtime);
 string Token(string client="a",string audience="router",string scope="router:read requests:read subscriptions:write")=>new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor{Issuer="https://issuer.example.invalid",Audience=audience,Expires=DateTime.UtcNow.AddMinutes(5),Claims=new Dictionary<string,object>{{"azp",client},{"sub","svc-"+client},{"scope",scope}},SigningCredentials=new(key,SecurityAlgorithms.RsaSha256)});
+DefaultHttpContext? lastContext=null;
 async Task<IActionResult> Send(string body,string? token=null,string method="POST",bool origin=false) {
- var context=new DefaultHttpContext();var r=context.Request;r.Method=method;r.ContentType="application/json";r.Headers.Accept="application/json, text/event-stream";r.Body=new MemoryStream(Encoding.UTF8.GetBytes(body));
+ var context=new DefaultHttpContext();lastContext=context;var r=context.Request;r.Method=method;r.ContentType="application/json";r.Headers.Accept="application/json, text/event-stream";r.Body=new MemoryStream(Encoding.UTF8.GetBytes(body));
  if(token is not null)r.Headers.Authorization="Bearer "+token;if(origin)r.Headers.Origin="https://evil.example.invalid";
  return await endpoints.Mcp(r,CancellationToken.None);
 }
@@ -24,7 +25,21 @@ void Check(bool ok,string name){if(!ok)throw new Exception(name);Console.WriteLi
 JsonElement Result(IActionResult result){var text=Encoding.UTF8.GetString(((FileContentResult)result).FileContents);var line=text.Split('\n').Last(l=>l.StartsWith("data: "));using var j=JsonDocument.Parse(line[6..]);return j.RootElement.Clone();}
 string Rpc(string method,object p)=>JsonSerializer.Serialize(new{jsonrpc="2.0",id=1,method,@params=p});
 Check(await Send("{}") is UnauthorizedResult,"HTTP missing bearer denied");
+Check(lastContext!.Response.Headers.WWWAuthenticate==McpDiscovery.Challenge,"HTTP missing bearer advertises fixed metadata");
+foreach(var verb in new[]{"GET","DELETE"}) {
+ Check(await Send("{}",method:verb) is UnauthorizedResult,"HTTP unauthenticated verb denied "+verb);
+ Check(lastContext!.Response.Headers.WWWAuthenticate==McpDiscovery.Challenge,"HTTP challenge for "+verb);
+}
+var metadataContext=new DefaultHttpContext();metadataContext.Request.Host=new HostString("attacker.invalid");metadataContext.Request.Headers["X-Forwarded-Host"]="attacker.invalid";metadataContext.Request.Headers.Authorization="Bearer synthetic-private-marker";
+var metadata=(JsonResult)endpoints.Metadata(metadataContext.Request);var doc=JsonSerializer.SerializeToElement(metadata.Value);
+Check(metadata.StatusCode==200&&metadata.ContentType=="application/json","HTTP public metadata JSON");
+Check(doc.GetProperty("resource").GetString()==McpDiscovery.Resource&&doc.GetProperty("authorization_servers")[0].GetString()==McpDiscovery.Issuer,"HTTP canonical resource and issuer");
+Check(doc.GetProperty("bearer_methods_supported")[0].GetString()=="header"&&doc.GetProperty("scopes_supported").GetArrayLength()==3,"HTTP only read scopes advertised");
+Check(!doc.GetRawText().Contains("attacker")&&!doc.GetRawText().Contains("synthetic-private-marker")&&!doc.TryGetProperty("registration_endpoint",out _),"HTTP metadata cannot reflect host/token or offer registration");
+Check(runtime.LastTenant is null&&runtime.LogAppends==0,"HTTP discovery has no tenant dispatch or log side effect");
 Check(await Send("{}",Token(audience:"other")) is StatusCodeResult{StatusCode:401},"HTTP wrong audience denied");
+Check(lastContext!.Response.Headers.WWWAuthenticate==McpDiscovery.Challenge,"HTTP rejected token advertises discovery without token details");
+Check(await Send("{}","not-a-jwt") is StatusCodeResult{StatusCode:401},"HTTP malformed token remains denied");
 Check(await Send("{}",Token(scope:"requests:read")) is StatusCodeResult{StatusCode:403},"HTTP missing route scope denied");
 Check(await Send("{}",Token(),origin:true) is StatusCodeResult{StatusCode:403},"HTTP origin denied");
 Check(await Send("{}",Token(),method:"GET") is StatusCodeResult{StatusCode:405},"HTTP stateless GET unsupported");
@@ -46,7 +61,9 @@ await Send(Rpc("events/unsubscribe",new{name=EventService.EventName,arguments=ne
 Check(!runtime.Writes.Any(s=>s.Id==subscription),"HTTP owning tenant unsubscribe");
 Check(runtime.LogAppends==0,"HTTP MCP does not create webhook logs");
 using(var missing=new RouterRuntime()) {
- var noConfig=new HttpEndpoints(missing);var context=new DefaultHttpContext();context.Request.Method="POST";context.Request.Body=new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+ var noConfig=new HttpEndpoints(missing);
+ Check(noConfig.Metadata(new DefaultHttpContext().Request) is JsonResult{StatusCode:200},"public discovery needs no private configuration");
+ var context=new DefaultHttpContext();context.Request.Method="POST";context.Request.Body=new MemoryStream(Encoding.UTF8.GetBytes("{}"));
  Check(await noConfig.Webhook(context.Request,"unknown",CancellationToken.None) is StatusCodeResult{StatusCode:503},"missing server configuration is503, not client JSON400");
 }
 sealed class Keys(SecurityKey key):ISigningKeys{public Task<IReadOnlyList<SecurityKey>> GetAsync(bool refresh,CancellationToken ct)=>Task.FromResult<IReadOnlyList<SecurityKey>>([key]);}

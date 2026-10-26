@@ -39,6 +39,15 @@ def main():
             except (OSError,urllib.error.URLError,TimeoutError):pass
             time.sleep(1)
         check(ready,'actual Functions host boots and bearer route rejects missing token')
+        metadata_path='/.well-known/oauth-protected-resource/api/mcp'
+        status,headers,body=request(metadata_path)
+        check(status==200 and headers.get('Content-Type','').startswith('application/json'),'actual host exposes root-level protected-resource metadata')
+        metadata=json.loads(body)
+        check(metadata['resource']=='https://webhook-mcp-router-v2-f7076f8e38.azurewebsites.net/api/mcp' and metadata['authorization_servers']==['https://keycloak-production-295b.up.railway.app/realms/webhook-router'],'actual host metadata pins resource and issuer')
+        status,headers,_=request('/api/mcp',{})
+        check(status==401 and 'resource_metadata="https://webhook-mcp-router-v2-f7076f8e38.azurewebsites.net'+metadata_path+'"' in headers.get('WWW-Authenticate',''),'actual host missing bearer discovery challenge')
+        check(request('/api/.well-known/oauth-protected-resource/api/mcp')[0]==404,'metadata does not acquire an accidental api prefix')
+
         check(request('/api/mcp',{}, {'Authorization':'Bearer synthetic-invalid-token'})[0]==503,'unconfigured issuer fails closed through host')
         check(request('/api/webhooks/unconfigured-source',{})[0]==503,'unconfigured ingress fails closed through host')
         status,headers,body=request('/runtime/webhooks/mcp',rpc('initialize',{'protocolVersion':'2025-06-18','capabilities':{},'clientInfo':{'name':'host-synthetic','version':'1'}}))
