@@ -1,0 +1,120 @@
+name: Router DbUp migration and network recovery
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_commit:
+        required: true
+        type: string
+      operation:
+        type: choice
+        options: [migrate, cleanup]
+        default: cleanup
+        required: true
+      cleanup_run_id:
+        description: Prior migration run ID; required for manual recovery only
+        type: string
+      cleanup_run_attempt:
+        description: Prior migration attempt; required for manual recovery only
+        type: string
+      confirm_reviewed_scope:
+        type: boolean
+        default: false
+        required: true
+permissions: {}
+concurrency:
+  group: azure-router-infrastructure
+  cancel-in-progress: false
+jobs:
+  migration:
+    if: github.repository == 'r33drichards/webhook-mcp-router' && github.ref == 'refs/heads/main' && inputs.confirm_reviewed_scope == true
+    environment: azure-router
+    runs-on: windows-2022
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      ARM_CLIENT_ID: ${{ vars.AZURE_ROUTER_CLIENT_ID }}
+      AZURE_ROUTER_PRINCIPAL_ID: ${{ vars.AZURE_ROUTER_PRINCIPAL_ID }}
+      MIGRATION_CLIENT_ID: ${{ vars.AZURE_ROUTER_MIGRATION_CLIENT_ID }}
+      MIGRATION_PRINCIPAL_ID: ${{ vars.AZURE_ROUTER_MIGRATION_PRINCIPAL_ID }}
+      BOOTSTRAP_CONFIRMED: ${{ vars.AZURE_ROUTER_MIGRATION_BOOTSTRAP_CONFIRMED }}
+      OPERATION: ${{ inputs.operation }}
+      RECOVERY_RUN: ${{ inputs.cleanup_run_id }}
+      RECOVERY_ATTEMPT: ${{ inputs.cleanup_run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify reviewed source and initialize isolated paths
+        shell: pwsh
+        run: |
+          if ($env:REVIEWED_COMMIT -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_SHA -cne $env:REVIEWED_COMMIT -or (git rev-parse HEAD) -cne $env:REVIEWED_COMMIT) { throw 'Reviewed source mismatch' }
+          "AZURE_CONFIG_DIR=$(Join-Path $env:RUNNER_TEMP 'router-migration-cli')" >> $env:GITHUB_ENV
+          "SQL_WINDOW_MARKER=$(Join-Path $env:RUNNER_TEMP 'router-migration-window')" >> $env:GITHUB_ENV
+          if ($env:OPERATION -eq 'migrate' -and $env:BOOTSTRAP_CONFIRMED -cne 'true') { throw 'Reviewed SQL/network bootstrap not confirmed' }
+          if ($env:OPERATION -eq 'migrate' -and ($env:MIGRATION_CLIENT_ID -cne 'c1d8ac72-f333-4a4c-a71a-57214cb6cc32' -or $env:MIGRATION_PRINCIPAL_ID -cne '02728515-73a1-487a-9527-9a17476eae37')) { throw 'Verified migration identity mismatch' }
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        if: inputs.operation == 'migrate'
+        with:
+          dotnet-version: '10.0.402'
+      - name: Build standalone migrator and inspect manifest before opening SQL
+        if: inputs.operation == 'migrate'
+        shell: pwsh
+        run: |
+          dotnet build tools/Router.Migrator -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Migrator build failed' }
+          dotnet tools/Router.Migrator/bin/Release/net10.0/Router.Migrator.dll manifest
+          if ($LASTEXITCODE -ne 0) { throw 'Script manifest failed' }
+          dotnet run --project tests/dotnet/Router.MigratorChecks -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Actual DbUp LocalDB transaction checks failed' }
+          python ci/test-azure-sql-migration-window.py
+          if ($LASTEXITCODE -ne 0) { throw 'Network contract failed' }
+      - name: Login network controller through existing OIDC identity
+        shell: pwsh
+        run: |
+          python ci/azure-disabled-app-deploy.py login
+          if ($LASTEXITCODE -ne 0) { throw 'Network identity failed' }
+      - name: Independent recovery mode closes SQL and removes exact prior rule
+        if: inputs.operation == 'cleanup'
+        shell: pwsh
+        run: |
+          if ($env:RECOVERY_RUN -notmatch '^[0-9]{1,20}$' -or $env:RECOVERY_ATTEMPT -notmatch '^[0-9]{1,4}$') { throw 'Exact prior run required' }
+          $env:GITHUB_RUN_ID=$env:RECOVERY_RUN
+          $env:GITHUB_RUN_ATTEMPT=$env:RECOVERY_ATTEMPT
+          python ci/azure-sql-migration-window.py cleanup
+          if ($LASTEXITCODE -ne 0) { throw 'RECOVERY FAILED: native operator must verify SQL closed' }
+      - name: Open closed SQL endpoint with zero firewall rules and determine TDS egress
+        if: inputs.operation == 'migrate'
+        shell: pwsh
+        run: |
+          python ci/azure-sql-migration-window.py open
+          if ($LASTEXITCODE -ne 0) { throw 'Window preflight/open failed' }
+          dotnet tools/Router.Migrator/bin/Release/net10.0/Router.Migrator.dll probe > (Join-Path $env:RUNNER_TEMP 'router-tds-probe.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Actual TDS egress unavailable; no HTTP IP fallback' }
+          python ci/azure-sql-migration-window.py allow (Join-Path $env:RUNNER_TEMP 'router-tds-probe.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Exact TDS rule failed' }
+      - name: Execute fresh-only DbUp transaction as separate migration identity
+        if: inputs.operation == 'migrate'
+        shell: pwsh
+        run: |
+          dotnet tools/Router.Migrator/bin/Release/net10.0/Router.Migrator.dll migrate
+          if ($LASTEXITCODE -ne 0) { throw 'Migration failed; never retry automatically' }
+      - name: Remove this run rule, always close SQL, clear private CLI state
+        if: always()
+        shell: pwsh
+        run: |
+          $cleanupFailed=$false
+          try {
+            if ($env:OPERATION -eq 'migrate' -and (Test-Path (Join-Path $env:RUNNER_TEMP 'router-migration-window'))) {
+              python ci/azure-sql-migration-window.py cleanup
+              if ($LASTEXITCODE -ne 0) { $cleanupFailed=$true }
+            }
+          } finally {
+            $env:AZURE_CONFIG_DIR=Join-Path $env:RUNNER_TEMP 'router-migration-cli'
+            az logout --only-show-errors *> $null
+            Remove-Item $env:AZURE_CONFIG_DIR -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item (Join-Path $env:RUNNER_TEMP 'router-tds-probe.json'),(Join-Path $env:RUNNER_TEMP 'router-migration-window') -Force -ErrorAction SilentlyContinue
+          }
+          if ($cleanupFailed) { throw 'CLEANUP FAILED: dispatch independent recovery; verify PNA Disabled and exact rule absent' }
