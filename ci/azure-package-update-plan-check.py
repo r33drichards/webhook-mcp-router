@@ -8,9 +8,9 @@ spec = importlib.util.spec_from_file_location('public', Path(__file__).with_name
 public = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(public)
 APP = public.APP
-OLD = '3928d39c73af8d2e7116cb5ab62e085bde5612ec586f643c2b843f3f27a5bf94'
-# Exact policy package digest verified from build 40477463286.
-NEW = '569149d7e4e242108c1b8d7d67de6c0f8e420f0fa1d7cf596e0cc41802ce67d8'
+OLD = '569149d7e4e242108c1b8d7d67de6c0f8e420f0fa1d7cf596e0cc41802ce67d8'
+# Exact scope-upgrade package digest verified from build 40483488868.
+NEW = '4375b7c0546a524339a0698d0e86fb23727c7af3c7d1c257b45fe19a95d9ef35'
 PREFIX = 'https://whmcprv2f7076f8e38.blob.core.windows.net/router-packages/'
 
 def validate(plan, require_noop=False):

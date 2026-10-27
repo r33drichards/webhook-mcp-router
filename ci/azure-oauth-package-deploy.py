@@ -8,17 +8,17 @@ command=base.command
 az=base.az
 ACCOUNT=base.ACCOUNT
 REPO='r33drichards/webhook-mcp-router'
-RUN=40477463286
-ARTIFACT=12721168982
-PACKAGING='8ea28a2948fce27f1f2f05c8161f0d2040220896'
-APPLICATION='050e56e518269e2aa9753d6b1162a7920c404b23'
-WRAPPER='400ad833b51304d3f380fc3c19a17a87628f8774116b11c051c2956f92acc2bc'
-DIGEST='569149d7e4e242108c1b8d7d67de6c0f8e420f0fa1d7cf596e0cc41802ce67d8'
+RUN=40483488868
+ARTIFACT=12724002205
+PACKAGING='5cea16c3d4e77bcaeb1b11f6a812006daf17f354'
+APPLICATION='71085060f001b3f2d20a2d96941a1377286a4fb0'
+WRAPPER='67c03de851012f97f19273b7e47e64a27a414107f9efa81e13ba59d1a5a7e46b'
+DIGEST='4375b7c0546a524339a0698d0e86fb23727c7af3c7d1c257b45fe19a95d9ef35'
 def check_provenance(run,artifact):
  require(run.get('id')==RUN and run.get('head_sha')==PACKAGING and run.get('conclusion')=='success' and run.get('path')=='.github/workflows/azure-package.yml')
  require(run.get('repository',{}).get('full_name')==REPO)
  require(artifact.get('id')==ARTIFACT and artifact.get('expired') is False and artifact.get('digest')=='sha256:'+WRAPPER)
- require(artifact.get('name')==f'router-windows-050e56e5-{RUN}' and artifact.get('workflow_run',{}).get('id')==RUN and artifact['workflow_run'].get('head_sha')==PACKAGING)
+ require(artifact.get('name')==f'router-windows-71085060-{RUN}' and artifact.get('workflow_run',{}).get('id')==RUN and artifact['workflow_run'].get('head_sha')==PACKAGING)
 def unpack(archive,destination,wrapper=WRAPPER,digest=DIGEST):
  require(0<archive.stat().st_size<=100_000_000 and hashlib.sha256(archive.read_bytes()).hexdigest()==wrapper)
  with zipfile.ZipFile(archive) as z:
