@@ -18,6 +18,9 @@ jobs:
           python3 ci/test-azure-fresh-plan-check.py
           python3 ci/test-azure-disabled-app-plan-check.py
           python3 ci/test-azure-public-mcp-plan-check.py
+          python3 ci/test-azure-package-update-plan-check.py
+          python3 ci/test-azure-oauth-package-deploy.py
+          python3 ci/test-oauth-release-http-check.py
           python3 ci/test-azure-sql-plan-projection.py
           python3 ci/test-azure-fresh-migration.py
           python3 ci/test-azure-package-upload.py
