@@ -1,4 +1,4 @@
-"""Exact OAuth release provenance and conditional upload; no config or identity changes."""
+"""Exact reviewed release provenance and conditional upload; no config or identity changes."""
 import hashlib,json,os,subprocess,sys,zipfile,importlib.util
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('base',Path(__file__).with_name('azure-disabled-app-deploy.py'))
@@ -8,17 +8,17 @@ command=base.command
 az=base.az
 ACCOUNT=base.ACCOUNT
 REPO='r33drichards/webhook-mcp-router'
-RUN=40423383700
-ARTIFACT=12698652767
-PACKAGING='0758f9fa38d292efbac40908a24fa18efed317d8'
-APPLICATION='2ab67cb064924ee955b790873a1d2e8b08f56838'
-WRAPPER='3cf83f790ef07c5d3ae6a6f992b555dec5390bb37357319939a5f40e94823d81'
-DIGEST='3928d39c73af8d2e7116cb5ab62e085bde5612ec586f643c2b843f3f27a5bf94'
+RUN=40477463286
+ARTIFACT=12721168982
+PACKAGING='8ea28a2948fce27f1f2f05c8161f0d2040220896'
+APPLICATION='050e56e518269e2aa9753d6b1162a7920c404b23'
+WRAPPER='400ad833b51304d3f380fc3c19a17a87628f8774116b11c051c2956f92acc2bc'
+DIGEST='569149d7e4e242108c1b8d7d67de6c0f8e420f0fa1d7cf596e0cc41802ce67d8'
 def check_provenance(run,artifact):
  require(run.get('id')==RUN and run.get('head_sha')==PACKAGING and run.get('conclusion')=='success' and run.get('path')=='.github/workflows/azure-package.yml')
  require(run.get('repository',{}).get('full_name')==REPO)
  require(artifact.get('id')==ARTIFACT and artifact.get('expired') is False and artifact.get('digest')=='sha256:'+WRAPPER)
- require(artifact.get('name')==f'router-windows-2ab67cb0-{RUN}' and artifact.get('workflow_run',{}).get('id')==RUN and artifact['workflow_run'].get('head_sha')==PACKAGING)
+ require(artifact.get('name')==f'router-windows-050e56e5-{RUN}' and artifact.get('workflow_run',{}).get('id')==RUN and artifact['workflow_run'].get('head_sha')==PACKAGING)
 def unpack(archive,destination,wrapper=WRAPPER,digest=DIGEST):
  require(0<archive.stat().st_size<=100_000_000 and hashlib.sha256(archive.read_bytes()).hexdigest()==wrapper)
  with zipfile.ZipFile(archive) as z:
@@ -50,6 +50,6 @@ if __name__=='__main__':
   require(stage in ('package','upload'))
   folder=Path(os.environ['ROUTER_DEPLOY_PRIVATE']);folder.mkdir(mode=0o700,exist_ok=True)
   (package if stage=='package' else upload)(folder)
-  print('PASS verified OAuth package '+stage)
+  print('PASS verified router package '+stage)
  except Exception:
   raise SystemExit('FAIL OAUTH_PACKAGE_STAGE; private details withheld')
