@@ -45,7 +45,7 @@ jobs:
       TF_VAR_http_allowed_cidrs: '[]'
       TF_VAR_sql_outbound_ips: '[]'
       TF_VAR_dispatch_enabled: 'false'
-      TF_VAR_package_sha256: 569149d7e4e242108c1b8d7d67de6c0f8e420f0fa1d7cf596e0cc41802ce67d8
+      TF_VAR_package_sha256: 4375b7c0546a524339a0698d0e86fb23727c7af3c7d1c257b45fe19a95d9ef35
       AZURE_ROUTER_PRINCIPAL_ID: ${{ vars.AZURE_ROUTER_PRINCIPAL_ID }}
       AZURE_CORE_COLLECT_TELEMETRY: 'false'
       RUNTIME_CONFIG_VERIFIED: ${{ vars.AZURE_ROUTER_RUNTIME_CONFIG_VERIFIED }}
