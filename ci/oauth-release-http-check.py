@@ -12,7 +12,7 @@ def check(fetch):
  status,headers,body=fetch(METADATA,'GET',False)
  assert status==200 and headers.get('Content-Type','').lower().startswith('application/json')
  doc=json.loads(body)
- assert doc=={'resource':RESOURCE,'authorization_servers':[ISSUER],'scopes_supported':['router:read','requests:read','destinations:read'],'bearer_methods_supported':['header']}
+ assert doc=={'resource':RESOURCE,'authorization_servers':[ISSUER],'scopes_supported':['router:read','requests:read','destinations:read','policies:read','policies:test','policies:write'],'bearer_methods_supported':['header']}
  for method in ('GET','POST'):
   for invalid in (False,True):
    status,headers,_=fetch(RESOURCE,method,invalid)

@@ -11,7 +11,7 @@ public static class McpDiscovery {
     public static object Document() => new {
         resource = Resource,
         authorization_servers = new[] { Issuer },
-        scopes_supported = new[] { "router:read", "requests:read", "destinations:read" },
+        scopes_supported = new[] { "router:read", "requests:read", "destinations:read", "policies:read", "policies:test", "policies:write" },
         bearer_methods_supported = new[] { "header" }
     };
 }

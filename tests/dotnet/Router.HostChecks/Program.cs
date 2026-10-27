@@ -83,6 +83,8 @@ try {
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");
  Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==12,"exploration, destination and policy catalog");
+ var policyTool=(await Rpc("tools/list",new{},a)).Item2!["result"]!["tools"]!.AsArray().Single(t=>t!["name"]!.GetValue<string>()=="policies_apply")!;
+ Check(policyTool["securitySchemes"]![0]!["scopes"]!.AsArray().Select(x=>x!.GetValue<string>()).SequenceEqual(new[]{"router:read","policies:write"}),"actual host emits policy OAuth security scheme through SDK");
  Check((await Rpc("events/list",new{},a)).Item2?["result"]?["events"]?.AsArray().Count==1,"custom event discovery");
  var body=Encoding.UTF8.GetBytes("{\"action\":\"opened\",\"number\":7,\"token\":\"synthetic-sensitive-marker\"}");
  Check(await Ingress("delivery-one",body,true)==200,"signed ingress accepted into SQL");
@@ -112,7 +114,9 @@ try {
  var revision=applied["Revision"]!.GetValue<string>();
  Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=(string?)null},a))["isError"]!.GetValue<bool>(),"stale creation revision denied through MCP");
  Check((await Tool("policies_apply",new{id="trial",source="invalid rego",expected_revision=revision},a))["isError"]!.GetValue<bool>(),"invalid policy cannot replace persisted source");
- Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision},Token(scopes:"router:read requests:read destinations:read")))["isError"]!.GetValue<bool>(),"existing read-only token cannot apply policy");
+ var scopeUpgrade=await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision},Token(scopes:"router:read requests:read destinations:read"));
+ Check(scopeUpgrade["isError"]!.GetValue<bool>()&&scopeUpgrade["_meta"]!["mcp/www_authenticate"]![0]!.GetValue<string>().Contains("scope=\"router:read policies:write\""),"existing read-only token denied with precise policy scope-upgrade challenge");
+ Check(Data(await Tool("policies_get",new{},a))["Revision"]!.GetValue<string>()==revision,"scope-upgrade response cannot mutate policy");
  Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision,tenant="tenant-b"},a))["isError"]!.GetValue<bool>(),"arbitrary tenant argument denied before write");
  Check(Data(await Tool("policies_get",new{},b))["exists"]!.GetValue<bool>()==false,"other tenant cannot read policy or revision");
  Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision},b))["isError"]!.GetValue<bool>(),"other tenant revision cannot create policy");
