@@ -84,6 +84,25 @@ public sealed class OpaEvaluator(string executable, string capabilities)
         finally { Directory.Delete(dir, true); }
     }
 
+    public async Task ValidateAsync(string source,CancellationToken ct=default) {
+        if(!Path.IsPathFullyQualified(executable)||!Path.IsPathFullyQualified(capabilities))throw new InvalidOperationException("OPA_PATH_INVALID");
+        if(Encoding.UTF8.GetByteCount(source) is 0 or >32768)throw new ArgumentException("POLICY_LIMIT");
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);deadline.CancelAfter(TimeSpan.FromSeconds(2));
+        string dir=Path.Combine(Path.GetTempPath(),"router-check-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(dir,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
+        try {
+            string file=Path.Combine(dir,"policy.rego");await File.WriteAllTextAsync(file,source,deadline.Token);
+            var start=new ProcessStartInfo(executable){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true,CreateNoWindow=true,WorkingDirectory=dir};
+            start.Environment.Clear();if(OperatingSystem.IsWindows()&&Environment.GetEnvironmentVariable("SystemRoot") is string root)start.Environment["SystemRoot"]=root;
+            foreach(var arg in new[]{"check","--strict","--capabilities",capabilities,file})start.ArgumentList.Add(arg);
+            using var process=Process.Start(start)??throw new InvalidOperationException("OPA_START_FAILED");
+            using var kill=deadline.Token.Register(()=>{try{if(!process.HasExited)process.Kill(true);}catch(InvalidOperationException){}});
+            var stdout=ReadBounded(process.StandardOutput,4096,deadline);var stderr=ReadBounded(process.StandardError,4096,deadline);
+            try {await process.WaitForExitAsync(deadline.Token);await Task.WhenAll(stdout,stderr);if(process.ExitCode!=0)throw new InvalidOperationException("POLICY_INVALID");}
+            finally {if(!process.HasExited){process.Kill(true);await process.WaitForExitAsync();}try{await Task.WhenAll(stdout,stderr);}catch{}}
+        }finally{Directory.Delete(dir,true);}
+    }
+
     private static async Task<string> ReadBounded(StreamReader reader, int limit, CancellationTokenSource deadline)
     {
         var text = new StringBuilder(); var buffer = new char[1024];

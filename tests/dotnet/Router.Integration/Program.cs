@@ -13,6 +13,26 @@ string[] scopes=["router:read","subscriptions:write","policies:write","requests:
 var a=new TenantContext("tenant-a","client-a",scopes);var b=new TenantContext("tenant-b","client-b",scopes);
 try {
  await Execute(master,"CREATE DATABASE ["+name+"]");await SqlMigration.ApplyAsync(connection);
+ var policyTenant=new TenantContext("policy-a","agent",["policies:read","policies:write"]);
+ var policyStore=new SqlPolicyStore(connection,policyTenant);
+ Check(await policyStore.GetAsync(ct) is null,"policy store starts empty");
+ var createStore=new SqlPolicyStore(connection,new("policy-create","agent",["policies:read","policies:write"]));
+ async Task<bool> ConcurrentCreate(){try{await createStore.ApplyAsync("route","initial",null,ct);return true;}catch(InvalidOperationException e)when(e.Message=="POLICY_VERSION_CONFLICT"){return false;}}
+ Check((await Task.WhenAll(ConcurrentCreate(),ConcurrentCreate())).Count(x=>x)==1,"concurrent policy creation has exactly one winner");
+ var policyFirst=await policyStore.ApplyAsync("route","package router\ndefault routes := []",null,ct);
+ Check((await policyStore.GetAsync(ct))!.Revision==policyFirst.Revision,"policy rowversion readback");
+ async Task Conflict(Func<Task> action){try{await action();}catch(InvalidOperationException e)when(e.Message=="POLICY_VERSION_CONFLICT"){return;}throw new Exception("policy conflict missing");}
+ await Conflict(()=>policyStore.ApplyAsync("route","changed",null,ct));
+ await Conflict(()=>policyStore.ApplyAsync("second","changed",policyFirst.Revision,ct));
+ var policyOther=new SqlPolicyStore(connection,new("policy-b","other",["policies:read","policies:write"]));
+ Check(await policyOther.GetAsync(ct) is null,"other tenant cannot read policy source or revision");
+ await Conflict(()=>policyOther.ApplyAsync("route","changed",policyFirst.Revision,ct));
+ await policyOther.ApplyAsync("route","other tenant",null,ct);
+ Check((await policyStore.GetAsync(ct))!.Source!= "other tenant","same policy ID remains tenant isolated");
+ async Task<bool> ConcurrentPolicy(string source){try{await policyStore.ApplyAsync("route",source,policyFirst.Revision,ct);return true;}catch(InvalidOperationException e)when(e.Message=="POLICY_VERSION_CONFLICT"){return false;}}
+ Check((await Task.WhenAll(ConcurrentPolicy("one"),ConcurrentPolicy("two"))).Count(x=>x)==1,"concurrent policy CAS has exactly one winner");
+ await Deny(()=>new SqlPolicyStore(connection,new("policy-a","reader",[])).GetAsync(ct),"policy SQL read scope checked");
+ await Deny(()=>new SqlPolicyStore(connection,new("policy-a","reader",["policies:read"])).ApplyAsync("route","evil",null,ct),"policy SQL write scope checked");
  var wa=new SqlRegistrationWriter(connection,a);var wb=new SqlRegistrationWriter(connection,b);
  await wa.SavePolicyAsync(a.TenantId,new("same","package a"),ct);await wb.SavePolicyAsync(b.TenantId,new("same","package b"),ct);
  var ra=new SqlRegistrationReader(connection,a);var rb=new SqlRegistrationReader(connection,b);

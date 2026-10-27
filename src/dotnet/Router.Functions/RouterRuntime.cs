@@ -48,7 +48,8 @@ public sealed class RouterRuntime:IRouterRuntime,IDisposable {
         var log=new SqlRequestLog(config.LogReadConnection,tenant,new());
         var events=config.GenericRouting?null:new EventService(new SqlRegistrationWriter(config.RegistryWriteConnection,tenant),config.Callback,Convert.FromBase64String(config.CallbackKeyBase64),callbackHttp);
         var management=new DestinationManagement(tenant,new SqlDestinationStore(config.RegistryWriteConnection,tenant),config.DestinationBindings??[]);
-        return new(tenant,new RequestExplorer(tenant,log),events,management);
+        var policyManagement=config.GenericRouting?new PolicyManagement(tenant,new SqlPolicyStore(config.RegistryWriteConnection,tenant),new SqlDestinationReader(config.RegistryReadConnection,tenant),new OpaEvaluator(Environment.GetEnvironmentVariable("OPA_EXECUTABLE")??"",Environment.GetEnvironmentVariable("OPA_CAPABILITIES")??""),config.SourceId):null;
+        return new(tenant,new RequestExplorer(tenant,log),events,management,policyManagement);
     }
     public LoggedIngress? Ingress(string source) {
         Ensure();var config=settings!.SingleOrDefault(t=>t.SourceId==source);if(config is null)return null;

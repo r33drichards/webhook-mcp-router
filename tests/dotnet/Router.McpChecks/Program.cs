@@ -4,11 +4,11 @@ using System.Text;
 using System.Text.Json;
 var tenant=new TenantContext("tenant-a","client-a",["router:read","requests:read","subscriptions:write"]);
 var log=new Log();using var http=new HttpClient(new NoNetwork());
-DestinationManagement? management=null;
+DestinationManagement? management=null;PolicyManagement? policies=null;
 var events=new EventService(new Writer(),"https://callback.example.invalid",new byte[32],http);
 async Task<JsonElement> Call(string method,string parameters) {
  // New server for every request: no in-memory MCP session dependence.
- var server=new RequestServer(tenant,new RequestExplorer(tenant,log),events,management);
+ var server=new RequestServer(tenant,new RequestExplorer(tenant,log),events,management,policies);
  using var output=new MemoryStream();
  bool wrote=await server.ProcessAsync(Encoding.UTF8.GetBytes("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\""+method+"\",\"params\":"+parameters+"}"),output,CancellationToken.None);
  string body=Encoding.UTF8.GetString(output.ToArray());
@@ -42,6 +42,26 @@ Check(denied.GetProperty("result").GetProperty("isError").GetBoolean()&&store.Ro
 var other=await Call("tools/call","""{"name":"destinations_list","arguments":{}}""");
 Check(!other.GetRawText().Contains(id),"MCP other tenant destination list does not leak ID");
 Check(log.Appends==0,"destination management never creates webhook examples");
+
+var policyStore=new PolicyMemory();
+tenant=new TenantContext("tenant-a","policy-reader",["router:read","policies:read"]);
+policies=new PolicyManagement(tenant,policyStore,new PolicyDestinations(),new OpaEvaluator("invalid","invalid"),"source-a");
+var policyCatalog=await Call("tools/list","{}");
+Check(policyCatalog.GetProperty("result").GetProperty("tools").EnumerateArray().Count(t=>t.GetProperty("name").GetString()!.StartsWith("policies_"))==4,"four explicit policy tools advertised");
+Check(!(await Call("tools/call", """{"name":"policies_get","arguments":{}}""")).GetProperty("result").GetProperty("isError").GetBoolean(),"authorized policy get succeeds without evaluator or mutation");
+foreach(var payload in new[]{
+ """{"name":"policies_apply","arguments":{"id":"route","source":"package router","expected_revision":null}}""",
+ """{"name":"policies_get","arguments":{"tenant":"tenant-b"}}""",
+ """{"name":"policies_validate","arguments":{"source":"package router"}}"""})
+ Check((await Call("tools/call",payload)).GetProperty("result").GetProperty("isError").GetBoolean(),"policy scope/unknown tenant denied");
+Check(policyStore.Writes==0&&log.Appends==0,"policy permission failures neither write nor capture webhook examples");
+
+sealed class PolicyMemory:IPolicyStore {
+ public int Writes;
+ public Task<ManagedPolicy?> GetAsync(CancellationToken ct)=>Task.FromResult<ManagedPolicy?>(null);
+ public Task<ManagedPolicy> ApplyAsync(string id,string source,string? expected,CancellationToken ct){Writes++;throw new Exception("unexpected write");}
+}
+sealed class PolicyDestinations:IDestinationReader {public Task<IReadOnlyList<RegisteredDestination>> SnapshotAsync(string tenant,CancellationToken ct)=>Task.FromResult<IReadOnlyList<RegisteredDestination>>([]);}
 
 sealed class NoNetwork:HttpMessageHandler {protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r,CancellationToken c)=>throw new Exception("No network permitted");}
 sealed class Log:IRequestLog {
