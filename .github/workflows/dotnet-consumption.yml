@@ -50,13 +50,11 @@ jobs:
         run: |
           dotnet run --project tests/dotnet/Router.AuthChecks --configuration Release
           if ($LASTEXITCODE -ne 0) { throw 'Auth checks failed' }
-      - name: Test SQL tenant boundaries and request logs
+      - name: Start disposable SQL LocalDB
         shell: pwsh
         run: |
           sqllocaldb start MSSQLLocalDB
           if ($LASTEXITCODE -ne 0) { throw 'LocalDB start failed' }
-          dotnet run --project tests/dotnet/Router.Integration --configuration Release
-          if ($LASTEXITCODE -ne 0) { throw 'SQL checks failed' }
       - name: Test fresh migration transaction against real LocalDB
         shell: pwsh
         run: |
@@ -115,5 +113,10 @@ jobs:
           } finally {
             if (!$azurite.HasExited) { Stop-Process -Id $azurite.Id -Force }
           }
+      - name: Test SQL tenant boundaries and request logs
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.Integration --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'SQL checks failed' }
 # No Azure login, credentials, billing change, provisioning or deployment.
 

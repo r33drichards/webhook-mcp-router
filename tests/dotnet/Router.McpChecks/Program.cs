@@ -48,7 +48,21 @@ tenant=new TenantContext("tenant-a","policy-reader",["router:read","policies:rea
 policies=new PolicyManagement(tenant,policyStore,new PolicyDestinations(),new OpaEvaluator("invalid","invalid"),"source-a");
 var policyCatalog=await Call("tools/list","{}");
 Check(policyCatalog.GetProperty("result").GetProperty("tools").EnumerateArray().Count(t=>t.GetProperty("name").GetString()!.StartsWith("policies_"))==4,"four explicit policy tools advertised");
+foreach(var tool in policyCatalog.GetProperty("result").GetProperty("tools").EnumerateArray().Where(t=>t.GetProperty("name").GetString()!.StartsWith("policies_"))) {
+ var name=tool.GetProperty("name").GetString()!;
+ var expected=name switch {"policies_get"=>new[]{"router:read","policies:read"},"policies_preview"=>new[]{"router:read","policies:test","destinations:read"},"policies_apply"=>new[]{"router:read","policies:write"},_=>new[]{"router:read","policies:test"}};
+ Check(tool.GetProperty("securitySchemes")[0].GetProperty("type").GetString()=="oauth2"&&tool.GetProperty("securitySchemes")[0].GetProperty("scopes").EnumerateArray().Select(x=>x.GetString()).SequenceEqual(expected),"SDK wire exact policy OAuth scopes "+name);
+ Check(tool.GetProperty("_meta").GetProperty("securitySchemes").GetRawText()==tool.GetProperty("securitySchemes").GetRawText(),"SDK wire mirrored OAuth declaration "+name);
+}
+var upgrade=(await Call("tools/call", """{"name":"policies_apply","arguments":{"id":"route","source":"package router","expected_revision":null}}""")).GetProperty("result");
+Check(upgrade.GetProperty("isError").GetBoolean()&&upgrade.GetProperty("_meta").GetProperty("mcp/www_authenticate")[0].GetString()=="Bearer resource_metadata=\"https://webhook-mcp-router-v2-f7076f8e38.azurewebsites.net/.well-known/oauth-protected-resource/api/mcp\", error=\"insufficient_scope\", error_description=\"Authorize the required policy scopes\", scope=\"router:read policies:write\"","SDK wire scope-upgrade challenge survives result serialization");
+var invalidTenant=(await Call("tools/call", """{"name":"policies_get","arguments":{"tenant":"tenant-b"}}""")).GetProperty("result");
+Check(!invalidTenant.TryGetProperty("_meta",out _),"unknown tenant argument does not trigger OAuth upgrade");
 Check(!(await Call("tools/call", """{"name":"policies_get","arguments":{}}""")).GetProperty("result").GetProperty("isError").GetBoolean(),"authorized policy get succeeds without evaluator or mutation");
+policyStore.Deny=true;
+var downstreamDenied=(await Call("tools/call", """{"name":"policies_get","arguments":{}}""")).GetProperty("result");
+Check(downstreamDenied.GetProperty("isError").GetBoolean()&&!downstreamDenied.TryGetProperty("_meta",out _),"downstream tenant denial does not trigger OAuth escalation");
+policyStore.Deny=false;
 foreach(var payload in new[]{
  """{"name":"policies_apply","arguments":{"id":"route","source":"package router","expected_revision":null}}""",
  """{"name":"policies_get","arguments":{"tenant":"tenant-b"}}""",
@@ -57,8 +71,8 @@ foreach(var payload in new[]{
 Check(policyStore.Writes==0&&log.Appends==0,"policy permission failures neither write nor capture webhook examples");
 
 sealed class PolicyMemory:IPolicyStore {
- public int Writes;
- public Task<ManagedPolicy?> GetAsync(CancellationToken ct)=>Task.FromResult<ManagedPolicy?>(null);
+ public int Writes;public bool Deny;
+ public Task<ManagedPolicy?> GetAsync(CancellationToken ct){if(Deny)throw new UnauthorizedAccessException("synthetic-tenant-denial");return Task.FromResult<ManagedPolicy?>(null);}
  public Task<ManagedPolicy> ApplyAsync(string id,string source,string? expected,CancellationToken ct){Writes++;throw new Exception("unexpected write");}
 }
 sealed class PolicyDestinations:IDestinationReader {public Task<IReadOnlyList<RegisteredDestination>> SnapshotAsync(string tenant,CancellationToken ct)=>Task.FromResult<IReadOnlyList<RegisteredDestination>>([]);}

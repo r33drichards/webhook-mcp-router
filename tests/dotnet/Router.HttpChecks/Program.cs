@@ -34,7 +34,7 @@ var metadataContext=new DefaultHttpContext();metadataContext.Request.Host=new Ho
 var metadata=(JsonResult)endpoints.Metadata(metadataContext.Request);var doc=JsonSerializer.SerializeToElement(metadata.Value);
 Check(metadata.StatusCode==200&&metadata.ContentType=="application/json","HTTP public metadata JSON");
 Check(doc.GetProperty("resource").GetString()==McpDiscovery.Resource&&doc.GetProperty("authorization_servers")[0].GetString()==McpDiscovery.Issuer,"HTTP canonical resource and issuer");
-Check(doc.GetProperty("bearer_methods_supported")[0].GetString()=="header"&&doc.GetProperty("scopes_supported").GetArrayLength()==3,"HTTP only read scopes advertised");
+Check(doc.GetProperty("bearer_methods_supported")[0].GetString()=="header"&&doc.GetProperty("scopes_supported").EnumerateArray().Select(x=>x.GetString()).SequenceEqual(new[]{"router:read","requests:read","destinations:read","policies:read","policies:test","policies:write"}),"HTTP exact approved read and policy scopes advertised");
 Check(!doc.GetRawText().Contains("attacker")&&!doc.GetRawText().Contains("synthetic-private-marker")&&!doc.TryGetProperty("registration_endpoint",out _),"HTTP metadata cannot reflect host/token or offer registration");
 Check(runtime.LastTenant is null&&runtime.LogAppends==0,"HTTP discovery has no tenant dispatch or log side effect");
 Check(await Send("{}",Token(audience:"other")) is StatusCodeResult{StatusCode:401},"HTTP wrong audience denied");

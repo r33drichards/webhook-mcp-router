@@ -34,6 +34,8 @@ public sealed class RequestServer(TenantContext tenant,RequestExplorer explorer,
             return JsonSerializer.Deserialize<CallToolResult>(result!.ToJsonString())!;
         };
         options.Filters.Message.OutgoingFilters.Add(next=>async(context,cancellation)=> {
+            if(context.JsonRpcMessage is JsonRpcResponse toolResponse && toolResponse.Result is JsonObject toolResult)
+                PolicyOAuth.MirrorSchemes(toolResult);
             if(events is not null && context.JsonRpcMessage is JsonRpcResponse response && response.Result is JsonObject root && root["capabilities"] is JsonObject capabilities)
                 capabilities["events"]=new JsonObject();
             await next(context,cancellation);
@@ -62,6 +64,9 @@ public sealed class RequestServer(TenantContext tenant,RequestExplorer explorer,
             };
             // Validate unknown arguments BEFORE any authorized write.
             if(args.Any(p=>!allowed.Contains(p.Key)))throw new ArgumentException();
+            // Scope escalation is signaled only by this explicit preflight, not
+            // by downstream tenant denials, database faults or unknown arguments.
+            if(policies is not null && PolicyOAuth.RequireScopes(tenant,name) is JsonObject challenge)return challenge;
             string Text(string field)=>args[field]?.GetValue<string>()??throw new ArgumentException();
             string[] Tags()=>args["tags"]?.AsArray().Select(x=>x?.GetValue<string>()??throw new ArgumentException()).ToArray()??throw new ArgumentException();
             object result=name switch {
@@ -110,6 +115,7 @@ public sealed class RequestServer(TenantContext tenant,RequestExplorer explorer,
       foreach(var tool in tools.OfType<JsonObject>().Where(t=>t["name"]!.GetValue<string>().StartsWith("policies_",StringComparison.Ordinal))) {
         bool write=tool["name"]!.GetValue<string>()=="policies_apply";
         tool["annotations"]=new JsonObject{["readOnlyHint"]=!write,["destructiveHint"]=write,["idempotentHint"]=!write,["openWorldHint"]=false};
+        PolicyOAuth.Annotate(tool);
       }
       return catalog;
     }
