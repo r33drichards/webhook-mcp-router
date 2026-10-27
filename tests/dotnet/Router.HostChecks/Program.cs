@@ -17,7 +17,7 @@ async Task Sql(string cs,string sql){await using var c=new SqlConnection(cs);awa
 using var rsa=RSA.Create(2048);var signing=new RsaSecurityKey(rsa){KeyId="ephemeral-host-fixture"};var pub=rsa.ExportParameters(false);
 string jwks=JsonSerializer.Serialize(new{keys=new[]{new{kty="RSA",use="sig",alg="RS256",kid=signing.KeyId,n=Base64UrlEncoder.Encode(pub.Modulus!),e=Base64UrlEncoder.Encode(pub.Exponent!)}}});
 byte[] ingressKey=RandomNumberGenerator.GetBytes(32);
-string Token(string client="a",string aud="router")=>new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor{Issuer="https://synthetic-issuer.example.invalid",Audience=aud,Expires=DateTime.UtcNow.AddMinutes(15),Claims=new Dictionary<string,object>{{"azp",client},{"sub","svc-"+client},{"scope","router:read requests:read subscriptions:write destinations:read destinations:write"}},SigningCredentials=new(signing,SecurityAlgorithms.RsaSha256)});
+string Token(string client="a",string aud="router",string scopes="router:read requests:read subscriptions:write destinations:read destinations:write policies:read policies:test policies:write")=>new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor{Issuer="https://synthetic-issuer.example.invalid",Audience=aud,Expires=DateTime.UtcNow.AddMinutes(15),Claims=new Dictionary<string,object>{{"azp",client},{"sub","svc-"+client},{"scope",scopes}},SigningCredentials=new(signing,SecurityAlgorithms.RsaSha256)});
 using var http=new HttpClient(new SocketsHttpHandler{UseProxy=false,AllowAutoRedirect=false}){BaseAddress=new Uri("http://127.0.0.1:7072"),Timeout=TimeSpan.FromSeconds(20)};
 Process? host=null;Task? stdout=null,stderr=null;var log=new StringBuilder();
 async Task Drain(StreamReader reader){while(await reader.ReadLineAsync() is string line){lock(log){if(log.Length<20000)log.AppendLine(line);}}}
@@ -82,7 +82,7 @@ try {
  var a=Token();var b=Token("b");
  Check((await Rpc("initialize",new{},null)).Item1==401,"missing bearer denied");Check((await Rpc("initialize",new{},Token(aud:"wrong"))).Item1==401,"wrong audience denied");
  var init=await Rpc("initialize",new{protocolVersion="2025-06-18",capabilities=new{},clientInfo=new{name="actual-host-fixture",version="1"}},a);Check(init.Item1==200&&init.Item2?["result"]?["capabilities"]?["events"] is not null,"authenticated SDK initialize");
- Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==8,"exploration and destination catalog");
+ Check((await Rpc("tools/list",new{},a)).Item2?["result"]?["tools"]?.AsArray().Count==12,"exploration, destination and policy catalog");
  Check((await Rpc("events/list",new{},a)).Item2?["result"]?["events"]?.AsArray().Count==1,"custom event discovery");
  var body=Encoding.UTF8.GetBytes("{\"action\":\"opened\",\"number\":7,\"token\":\"synthetic-sensitive-marker\"}");
  Check(await Ingress("delivery-one",body,true)==200,"signed ingress accepted into SQL");
@@ -100,9 +100,24 @@ try {
  string destination=registered["Id"]!.GetValue<string>();Check(!registered["Enabled"]!.GetValue<bool>(),"actual host destination registration disabled");
  await Tool("destinations_set_enabled",new{id=destination,enabled=true},a);
  Check(Data(await Tool("destinations_list",new{},b))["Items"]!.AsArray().Count==0,"actual host destination tenant isolation");
- var policyWriter=new SqlRegistrationWriter(connection,new TenantContext("tenant-a","fixture-operator",["policies:write"]));
- await policyWriter.SavePolicyAsync("tenant-a",new("trial",File.ReadAllText("policies/trial/mcp-js-review.rego")),default);
+
  var genericBody=Encoding.UTF8.GetBytes("{\"repository\":{\"id\":961207108,\"full_name\":\"r33drichards/mcp-js\"},\"action\":\"labeled\",\"label\":{\"name\":\"review\"}}");
+ var policySource=File.ReadAllText("policies/trial/mcp-js-review.rego");
+ Check(Data(await Tool("policies_get",new{},a))["exists"]!.GetValue<bool>()==false,"empty tenant policy read");
+ Check(Data(await Tool("policies_validate",new{source=policySource},a))["valid"]!.GetValue<bool>(),"real host policy validation with restricted OPA");
+ var preview=Data(await Tool("policies_preview",new{source=policySource,event_type="pull_request",input=JsonSerializer.Deserialize<JsonElement>(genericBody)},a));
+ Check(preview["Allowed"]!.GetValue<bool>()&&preview["Routes"]!.AsArray().Count==1,"real host policy preview selects tenant destination");
+ Check(await new SqlOutbox(connection,new TenantContext("tenant-a","fixture",[]),genericWebhook:true).ClaimAsync(TimeSpan.FromSeconds(30),default) is null,"policy preview cannot enqueue delivery");
+ var applied=Data(await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=(string?)null},a));
+ var revision=applied["Revision"]!.GetValue<string>();
+ Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=(string?)null},a))["isError"]!.GetValue<bool>(),"stale creation revision denied through MCP");
+ Check((await Tool("policies_apply",new{id="trial",source="invalid rego",expected_revision=revision},a))["isError"]!.GetValue<bool>(),"invalid policy cannot replace persisted source");
+ Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision},Token(scopes:"router:read requests:read destinations:read")))["isError"]!.GetValue<bool>(),"existing read-only token cannot apply policy");
+ Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision,tenant="tenant-b"},a))["isError"]!.GetValue<bool>(),"arbitrary tenant argument denied before write");
+ Check(Data(await Tool("policies_get",new{},b))["exists"]!.GetValue<bool>()==false,"other tenant cannot read policy or revision");
+ Check((await Tool("policies_apply",new{id="trial",source=policySource,expected_revision=revision},b))["isError"]!.GetValue<bool>(),"other tenant revision cannot create policy");
+ await Stop();await Start();
+ Check(Data(await Tool("policies_get",new{},a))["Revision"]!.GetValue<string>()==revision,"policy survives fresh Functions host with unchanged revision");
  string delivery=Guid.NewGuid().ToString();
  Check(await Ingress(delivery,genericBody,true,"source-generic","pull_request")==200,"actual host generic signed GitHub input accepted");
  Check(await Ingress(delivery,genericBody,true,"source-generic","pull_request")==200,"actual host generic duplicate accepted idempotently");

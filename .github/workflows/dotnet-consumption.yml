@@ -35,6 +35,11 @@ jobs:
         run: |
           dotnet run --project tests/dotnet/Router.Checks --configuration Release -- (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
           if ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }
+      - name: Test policy management with real restricted OPA
+        shell: pwsh
+        run: |
+          dotnet run --project tests/dotnet/Router.PolicyChecks --configuration Release -- (Join-Path $env:RUNNER_TEMP 'opa.exe') (Join-Path $env:GITHUB_WORKSPACE 'policies/capabilities.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Policy management checks failed' }
       - name: Test real local HTTPS and certificate rejection
         shell: pwsh
         run: |
