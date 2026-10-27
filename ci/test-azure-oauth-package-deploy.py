@@ -10,7 +10,7 @@ def denied(fn):
  except (ValueError,KeyError):count+=1
  else:raise AssertionError('Unsafe deployment accepted')
 run={'id':m.RUN,'head_sha':m.PACKAGING,'conclusion':'success','path':'.github/workflows/azure-package.yml','repository':{'full_name':m.REPO}}
-artifact={'id':m.ARTIFACT,'expired':False,'digest':'sha256:'+m.WRAPPER,'name':f'router-windows-2ab67cb0-{m.RUN}','workflow_run':{'id':m.RUN,'head_sha':m.PACKAGING}}
+artifact={'id':m.ARTIFACT,'expired':False,'digest':'sha256:'+m.WRAPPER,'name':f'router-windows-050e56e5-{m.RUN}','workflow_run':{'id':m.RUN,'head_sha':m.PACKAGING}}
 m.check_provenance(run,artifact);count+=1
 for key,value in [('id',1),('expired',True),('digest','wrong'),('name','wrong'),('workflow_run',{'id':2,'head_sha':m.PACKAGING})]:
  bad=copy.deepcopy(artifact);bad[key]=value;denied(lambda:m.check_provenance(run,bad))

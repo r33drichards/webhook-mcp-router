@@ -8,6 +8,7 @@ p=copy.deepcopy(fixtures['noop'])
 c=p['resource_changes'][-1]['change'];c['actions']=['update']
 def package(value,digest):
     next(s for s in value['body']['properties']['siteConfig']['appSettings'] if s['name']=='WEBSITE_RUN_FROM_PACKAGE')['value']=m.PREFIX+digest+'.zip'
+package(c['before'],m.OLD)
 package(c['after'],m.NEW)
 assert m.validate(p)==13
 noop=copy.deepcopy(p);nc=noop['resource_changes'][-1]['change'];nc['before']=copy.deepcopy(nc['after']);nc['actions']=['no-op']
